@@ -1,32 +1,30 @@
 package com.umairshahab.etea.studyplan.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
+import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -34,32 +32,31 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.umairshahab.etea.studyplan.R
 import com.umairshahab.etea.studyplan.data.local.RevisionEntity
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
-import com.umairshahab.etea.studyplan.domain.BackupManager
 import com.umairshahab.etea.studyplan.domain.RevisionScheduler
 import com.umairshahab.etea.studyplan.domain.Subject
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import com.umairshahab.etea.studyplan.ui.components.EmptyStateView
 import com.umairshahab.etea.studyplan.ui.components.GradientPillButton
 import com.umairshahab.etea.studyplan.ui.components.GradientPillChip
 import com.umairshahab.etea.studyplan.ui.components.HorizontalMonthCalendar
 import com.umairshahab.etea.studyplan.ui.components.MetricCard
 import com.umairshahab.etea.studyplan.ui.components.RevisionRowItem
+import com.umairshahab.etea.studyplan.ui.components.SettingsSheet
 import com.umairshahab.etea.studyplan.ui.components.TopicRowItem
 import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
@@ -73,8 +70,21 @@ fun HomeScreen(
     onThemeModeChange: (ThemeMode) -> Unit,
     onAddTopic: () -> Unit,
     onMarkDone: (Long) -> Unit,
+    onNavigateToTopics: () -> Unit,
+    onExportBackup: () -> Unit,
+    onImportBackup: () -> Unit,
+    onEnableBackgroundAlerts: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val prefs = remember(context) {
+        context.getSharedPreferences("study_plan_prefs", Context.MODE_PRIVATE)
+    }
+    var onboardingDismissed by remember {
+        mutableStateOf(prefs.getBoolean("onboarding_dismissed", false))
+    }
+    var showSettingsSheet by remember { mutableStateOf(false) }
+
     val now = System.currentTimeMillis()
     val dueTodayCount = revisions.count {
         it.status == "SCHEDULED" && RevisionScheduler.isSameDay(it.dueAt, now) && it.dueAt >= now
@@ -103,66 +113,38 @@ fun HomeScreen(
                         text = "SP",
                         style = TextStyle(
                             brush = PrimaryGradientBrush,
-                            fontSize = 36.sp,
+                            fontSize = 32.sp,
                             fontWeight = FontWeight.Black
                         )
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Study Plan",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Study Plan",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = "Spaced Repetition Engine",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        )
+                    }
                 }
 
-                // Theme Mode dropdown selector
-                Box {
-                    var menuExpanded by remember { mutableStateOf(false) }
-                    val currentIcon = when (themeMode) {
-                        ThemeMode.LIGHT -> "☀️"
-                        ThemeMode.DARK -> "🌙"
-                        ThemeMode.SYSTEM -> "🔄"
+                IconButton(
+                    onClick = { showSettingsSheet = true },
+                    modifier = Modifier.semantics {
+                        contentDescription = "Open Settings"
                     }
-
-                    IconButton(
-                        onClick = { menuExpanded = true },
-                        modifier = Modifier.semantics {
-                            contentDescription = "Theme selector, current is ${themeMode.name}"
-                        }
-                    ) {
-                        Text(text = currentIcon, fontSize = 22.sp)
-                    }
-
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        modifier = Modifier.background(
-                            if (glassColors.isDark) Color(0xFF0F172A) else Color(0xFFFFFFFF)
-                        )
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("☀️ Light") },
-                            onClick = {
-                                onThemeModeChange(ThemeMode.LIGHT)
-                                menuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("🌙 Dark") },
-                            onClick = {
-                                onThemeModeChange(ThemeMode.DARK)
-                                menuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("🔄 System") },
-                            onClick = {
-                                onThemeModeChange(ThemeMode.SYSTEM)
-                                menuExpanded = false
-                            }
-                        )
-                    }
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_settings),
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
         }
@@ -209,7 +191,7 @@ fun HomeScreen(
                     text = "Total ${topics.size}",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
                 )
                 GradientPillButton(
                     text = "+ Add Topic",
@@ -223,7 +205,7 @@ fun HomeScreen(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Revision Schedule",
-                    fontSize = 17.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(horizontal = 16.dp)
@@ -237,36 +219,230 @@ fun HomeScreen(
             }
         }
 
+        // Onboarding card (when topics == 0 and not dismissed) or Empty state
         if (topics.isEmpty()) {
-            item {
-                EmptyStateView(
-                    emoji = "📚",
-                    title = "No topics yet",
-                    message = "Start your study journey by tapping + Add Topic above. Choose your subject, title, revision time, and intervals.",
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
+            if (!onboardingDismissed) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        border = StudyPlanThemeDefaults.glassColors.cardBorder,
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp)
+                        ) {
+                            Text(
+                                text = "Welcome to Study Plan",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Master your curriculum using scientific spaced repetition in three easy steps:",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                lineHeight = 18.sp
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(brush = PrimaryGradientBrush),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "1",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "Add topics",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(brush = PrimaryGradientBrush),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "2",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "Set intervals & time",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(brush = PrimaryGradientBrush),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "3",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "Get reminders",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(18.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                GradientPillButton(
+                                    text = "Got it",
+                                    onClick = {
+                                        prefs.edit().putBoolean("onboarding_dismissed", true).apply()
+                                        onboardingDismissed = true
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    EmptyStateView(
+                        iconRes = R.drawable.ic_empty_book,
+                        title = "No topics yet",
+                        message = "Start your study journey by tapping + Add Topic above. Choose your subject, title, revision time, and intervals.",
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
             }
         } else {
+            // Next up glass card (replaces Recent Topics list)
             item {
-                Text(
-                    text = "Recent Topics",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
+                val nextUpRevision = revisions
+                    .filter { it.status == "SCHEDULED" && it.dueAt >= now }
+                    .minByOrNull { it.dueAt }
+                val nextUpTopic = nextUpRevision?.let { rev -> topics.find { it.id == rev.topicId } }
 
-            items(topics.take(5), key = { it.id }) { topic ->
-                val nextRev = revisions.firstOrNull { it.topicId == topic.id && it.status == "SCHEDULED" && it.dueAt >= now }
-                val nextDueFormatted = nextRev?.let { RevisionScheduler.format(it.dueAt) }
-                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    TopicRowItem(
-                        topic = topic,
-                        nextDueFormatted = nextDueFormatted,
-                        onEdit = {},
-                        onDelete = {}
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    border = StudyPlanThemeDefaults.glassColors.cardBorder,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
                     )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Next up",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "View all",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable(onClick = onNavigateToTopics)
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        if (nextUpRevision != null && nextUpTopic != null) {
+                            Text(
+                                text = nextUpTopic.title,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val subtitle = if (!nextUpTopic.chapter.isNullOrBlank()) {
+                                "${nextUpTopic.chapter} • ${nextUpTopic.subject}"
+                            } else {
+                                nextUpTopic.subject
+                            }
+                            Text(
+                                text = subtitle,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Due: ${RevisionScheduler.format(nextUpRevision.dueAt)}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Text(
+                                text = "No upcoming revisions",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "All scheduled revisions are completed.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -274,6 +450,17 @@ fun HomeScreen(
         item {
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (showSettingsSheet) {
+        SettingsSheet(
+            themeMode = themeMode,
+            onThemeModeChange = onThemeModeChange,
+            onExportBackup = onExportBackup,
+            onImportBackup = onImportBackup,
+            onEnableBackgroundAlerts = onEnableBackgroundAlerts,
+            onDismiss = { showSettingsSheet = false }
+        )
     }
 }
 
@@ -316,24 +503,35 @@ fun ReviseScreen(
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Revision Queue",
-                fontSize = 24.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = "Static spaced repetition schedule",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
             )
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        if (dueToday.isEmpty() && missed.isEmpty() && upcoming.isEmpty()) {
+        // Empty state when nothing is due today and nothing missed
+        if (dueToday.isEmpty() && missed.isEmpty()) {
             item {
+                val nextScheduled = remember(revisions, now) {
+                    revisions.filter { it.status == "SCHEDULED" && it.dueAt >= now }.minByOrNull { it.dueAt }
+                }
+                val nextTopic = nextScheduled?.let { topicMap[it.topicId] }
+                val nextMessage = if (nextScheduled != null && nextTopic != null) {
+                    "Next: ${RevisionScheduler.format(nextScheduled.dueAt)} – ${nextTopic.title}"
+                } else {
+                    "All scheduled revisions are completed."
+                }
+
                 EmptyStateView(
-                    emoji = "⏰",
-                    title = "Nothing to revise",
-                    message = "All revisions are completed or no topics have been scheduled yet."
+                    iconRes = R.drawable.ic_empty_clock,
+                    title = "Nothing due now.",
+                    message = nextMessage
                 )
             }
         }
@@ -342,8 +540,8 @@ fun ReviseScreen(
             item {
                 Text(
                     text = "Due Today (${dueToday.size})",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
                 )
             }
@@ -364,8 +562,8 @@ fun ReviseScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Missed Revisions (${missed.size})",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = if (isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
                 )
             }
@@ -386,8 +584,8 @@ fun ReviseScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Upcoming (Next 10)",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -441,14 +639,14 @@ fun SubjectsScreen(
                 Column {
                     Text(
                         text = "Subjects",
-                        fontSize = 24.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         text = "Filter by fixed subject curriculum",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                 }
                 GradientPillButton(
@@ -478,11 +676,24 @@ fun SubjectsScreen(
 
         if (filteredTopics.isEmpty()) {
             item {
-                EmptyStateView(
-                    emoji = "📖",
-                    title = "No ${selectedSubject.displayName} topics",
-                    message = "Tap '+ Add' above to create a topic under ${selectedSubject.displayName}."
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    EmptyStateView(
+                        iconRes = R.drawable.ic_empty_book,
+                        title = "No ${selectedSubject.displayName} topics",
+                        message = "Add a topic to begin spaced repetition for this subject."
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    GradientPillButton(
+                        text = "Add your first ${selectedSubject.displayName} topic",
+                        onClick = { onAddTopicForSubject(selectedSubject) }
+                    )
+                }
             }
         } else {
             items(filteredTopics, key = { it.id }) { topic ->
@@ -509,71 +720,10 @@ fun AllTopicsScreen(
     revisions: List<RevisionEntity>,
     onEditTopic: (TopicEntity) -> Unit,
     onDeleteTopic: (Long) -> Unit,
-    onRestoreBackup: suspend (List<TopicEntity>, List<RevisionEntity>) -> Unit = { _, _ -> },
-    onShowSnackbar: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val now = System.currentTimeMillis()
     var searchQuery by remember { mutableStateOf("") }
-
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        if (uri != null) {
-            scope.launch(Dispatchers.IO) {
-                try {
-                    val json = BackupManager.createBackupJson(topics, revisions)
-                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                        outputStream.write(json.toByteArray(Charsets.UTF_8))
-                    }
-                    withContext(Dispatchers.Main) {
-                        onShowSnackbar("Backup exported successfully")
-                    }
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        onShowSnackbar("Failed to export backup")
-                    }
-                }
-            }
-        }
-    }
-
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            scope.launch(Dispatchers.IO) {
-                try {
-                    val jsonString = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        inputStream.bufferedReader().use { it.readText() }
-                    }
-                    if (jsonString != null) {
-                        val result = BackupManager.parseBackupJson(jsonString)
-                        if (result != null) {
-                            onRestoreBackup(result.first, result.second)
-                            withContext(Dispatchers.Main) {
-                                onShowSnackbar("Backup restored")
-                            }
-                        } else {
-                            withContext(Dispatchers.Main) {
-                                onShowSnackbar("Invalid backup file")
-                            }
-                        }
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            onShowSnackbar("Invalid backup file")
-                        }
-                    }
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        onShowSnackbar("Invalid backup file")
-                    }
-                }
-            }
-        }
-    }
 
     val filteredTopics = remember(topics, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -597,56 +747,18 @@ fun AllTopicsScreen(
     ) {
         item {
             Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "All Topics (${topics.size})",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Full study repository and revision targets",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = { exportLauncher.launch("studyplan_backup.json") },
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(34.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
-                    ) {
-                        Text(
-                            text = "Export",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Button(
-                        onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) },
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        Text(
-                            text = "Import",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Topics (${topics.size})",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Full study repository and revision targets",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
             }
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -658,25 +770,26 @@ fun AllTopicsScreen(
                 placeholder = {
                     Text(
                         text = "Search topics or chapters...",
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 },
                 leadingIcon = {
-                    Text(
-                        text = "🔍",
-                        fontSize = 16.sp,
-                        modifier = Modifier.semantics { contentDescription = "Search" }
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_search),
+                        contentDescription = "Search",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Text(
-                                text = "✕",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_close),
+                                contentDescription = "Clear search",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
@@ -698,7 +811,7 @@ fun AllTopicsScreen(
         if (topics.isEmpty()) {
             item {
                 EmptyStateView(
-                    emoji = "📋",
+                    iconRes = R.drawable.ic_empty_list,
                     title = "No topics created",
                     message = "All created topics across Maths, Physics, Chemistry, and English appear here."
                 )
@@ -706,7 +819,7 @@ fun AllTopicsScreen(
         } else if (filteredTopics.isEmpty()) {
             item {
                 EmptyStateView(
-                    emoji = "🔍",
+                    iconRes = R.drawable.ic_empty_search,
                     title = "No matching topics",
                     message = "No topics or chapters found matching \"$searchQuery\"."
                 )

@@ -19,11 +19,14 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -44,8 +47,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -53,6 +59,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
+import com.umairshahab.etea.studyplan.domain.BackupManager
 import com.umairshahab.etea.studyplan.domain.Subject
 import com.umairshahab.etea.studyplan.notifications.NotificationHelper
 import com.umairshahab.etea.studyplan.notifications.ReminderWorker
@@ -65,7 +72,9 @@ import com.umairshahab.etea.studyplan.ui.components.TopicSheet
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanTheme
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
 import com.umairshahab.etea.studyplan.ui.theme.ThemeMode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
@@ -250,11 +259,70 @@ fun StudyPlanScreen(
         }
     }
 
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val json = BackupManager.createBackupJson(topics, revisions)
+                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        outputStream.write(json.toByteArray(Charsets.UTF_8))
+                    }
+                    withContext(Dispatchers.Main) {
+                        snackbarHostState.showSnackbar("Backup exported successfully")
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        snackbarHostState.showSnackbar("Failed to export backup")
+                    }
+                }
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val jsonString = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        inputStream.bufferedReader().use { it.readText() }
+                    }
+                    if (jsonString != null) {
+                        val result = BackupManager.parseBackupJson(jsonString)
+                        if (result != null) {
+                            viewModel.restoreBackup(result.first, result.second)
+                            withContext(Dispatchers.Main) {
+                                snackbarHostState.showSnackbar("Backup restored")
+                            }
+                        } else {
+                            withContext(Dispatchers.Main) {
+                                snackbarHostState.showSnackbar("Invalid backup file")
+                            }
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            snackbarHostState.showSnackbar("Invalid backup file")
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        snackbarHostState.showSnackbar("Invalid backup file")
+                    }
+                }
+            }
+        }
+    }
+
+    data class NavItem(val label: String, val iconRes: Int)
+
     val navItems = listOf(
-        Pair("Home", "🏠"),
-        Pair("Revise", "⏰"),
-        Pair("Subjects", "📚"),
-        Pair("All", "📋")
+        NavItem("Home", R.drawable.ic_tab_home),
+        NavItem("Revise", R.drawable.ic_tab_revise),
+        NavItem("Subjects", R.drawable.ic_tab_subjects),
+        NavItem("Topics", R.drawable.ic_tab_topics)
     )
 
     Scaffold(
@@ -271,15 +339,28 @@ fun StudyPlanScreen(
                         selected = isSelected,
                         onClick = { selectedTab = index },
                         icon = {
-                            Text(
-                                text = item.second,
-                                fontSize = 20.sp,
-                                modifier = Modifier.semantics {
-                                    contentDescription = "${item.first} tab"
-                                }
+                            Icon(
+                                painter = painterResource(id = item.iconRes),
+                                contentDescription = "${item.label} tab",
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
                             )
                         },
-                        label = { Text(text = item.first) }
+                        label = {
+                            Text(
+                                text = item.label,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        )
                     )
                 }
             }
@@ -299,6 +380,10 @@ fun StudyPlanScreen(
                     showSheet = true
                 },
                 onMarkDone = { revId -> viewModel.markDone(revId) },
+                onNavigateToTopics = { selectedTab = 3 },
+                onExportBackup = { exportLauncher.launch("studyplan_backup.json") },
+                onImportBackup = { importLauncher.launch(arrayOf("application/json", "*/*")) },
+                onEnableBackgroundAlerts = { openBatteryOptimizationSettings() },
                 modifier = modifier
             )
             1 -> ReviseScreen(
@@ -333,14 +418,6 @@ fun StudyPlanScreen(
                 },
                 onDeleteTopic = { topicId ->
                     handleDeleteTopic(topicId)
-                },
-                onRestoreBackup = { backupTopics, backupRevisions ->
-                    viewModel.restoreBackup(backupTopics, backupRevisions)
-                },
-                onShowSnackbar = { message ->
-                    scope.launch {
-                        snackbarHostState.showSnackbar(message)
-                    }
                 },
                 modifier = modifier
             )

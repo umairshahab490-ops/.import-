@@ -21,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -31,11 +32,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.umairshahab.etea.studyplan.R
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
 import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
@@ -105,10 +109,11 @@ fun PlaceholderCalendarCard(modifier: Modifier = Modifier) {
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "📅",
-                    fontSize = 22.sp,
-                    modifier = Modifier.semantics { contentDescription = "Calendar view upcoming" }
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_empty_calendar),
+                    contentDescription = "Calendar view upcoming",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
                 )
             }
             Spacer(modifier = Modifier.width(14.dp))
@@ -123,7 +128,7 @@ fun PlaceholderCalendarCard(modifier: Modifier = Modifier) {
                 Text(
                     text = "Calendar arrives later. Track daily targets right here!",
                     fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
             }
         }
@@ -160,17 +165,17 @@ fun TopicRowItem(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = topic.title,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    val chapterPart = if (!topic.chapter.isNullOrBlank()) "${topic.chapter} • " else ""
+                    val subtitle = if (!topic.chapter.isNullOrBlank()) "${topic.chapter} • ${topic.subject}" else topic.subject
                     val duePart = nextDueFormatted?.let { "Next due: $it" } ?: "All revisions completed"
                     Text(
-                        text = "$chapterPart${topic.subject}\n$duePart",
+                        text = "$subtitle\n$duePart",
                         fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                         lineHeight = 18.sp
                     )
                 }
@@ -370,7 +375,7 @@ fun GradientPillChip(
 
 @Composable
 fun EmptyStateView(
-    emoji: String,
+    iconRes: Int = R.drawable.ic_empty_book,
     title: String,
     message: String,
     modifier: Modifier = Modifier
@@ -382,24 +387,27 @@ fun EmptyStateView(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = emoji,
-            fontSize = 48.sp,
-            modifier = Modifier.semantics { contentDescription = title }
+        Icon(
+            painter = painterResource(id = iconRes),
+            contentDescription = title,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(48.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = title,
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            color = MaterialTheme.colorScheme.onSurface
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = message,
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = 20.sp
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            lineHeight = 18.sp,
+            textAlign = TextAlign.Center
         )
     }
 }

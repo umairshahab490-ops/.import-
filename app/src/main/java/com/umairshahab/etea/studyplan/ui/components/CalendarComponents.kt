@@ -112,6 +112,41 @@ fun HorizontalMonthCalendar(
             }
         }
 
+        // Legend row under month strip: small gradient dot "Scheduled" + red dot "Missed"
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(brush = PrimaryGradientBrush)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Scheduled",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
+            Spacer(modifier = Modifier.width(20.dp))
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFEF4444))
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Missed",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
+        }
+
         if (expandedMonth == null) {
             Box(
                 modifier = Modifier
@@ -122,7 +157,7 @@ fun HorizontalMonthCalendar(
                 Text(
                     text = "Tap a month to expand",
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
             }
         }
@@ -217,19 +252,12 @@ fun CompactMonthCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text(
-                            text = month.format(DateTimeFormatter.ofPattern("MMM", Locale.getDefault())),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = month.format(DateTimeFormatter.ofPattern("yy", Locale.getDefault())),
-                            fontSize = 9.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = month.format(DateTimeFormatter.ofPattern("MMM", Locale.getDefault())),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                     if (isSelected) {
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
@@ -553,7 +581,7 @@ fun DayRevisionsSheet(
 
             if (revisions.isEmpty()) {
                 Text(
-                    text = "All revisions completed for this day! 🎉",
+                    text = "All revisions completed for this day!",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D),

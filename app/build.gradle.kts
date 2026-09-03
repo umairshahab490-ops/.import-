@@ -22,7 +22,7 @@ android {
     }
 
     signingConfigs {
-        val keystorePath = System.getenv("KEYSTORE_PATH")
+        val keystorePath = System.getenv("KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
         if (keystorePath != null) {
             create("ci") {
                 storeFile = file(keystorePath)

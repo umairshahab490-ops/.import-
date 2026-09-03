@@ -15,6 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -63,6 +64,7 @@ import com.umairshahab.etea.studyplan.ui.SubjectsScreen
 import com.umairshahab.etea.studyplan.ui.components.TopicSheet
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanTheme
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
+import com.umairshahab.etea.studyplan.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -96,7 +98,23 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-            StudyPlanTheme {
+            val prefs = remember {
+                applicationContext.getSharedPreferences("study_plan_prefs", Context.MODE_PRIVATE)
+            }
+            var themeMode by remember {
+                mutableStateOf(
+                    ThemeMode.fromString(prefs.getString("theme_mode", ThemeMode.SYSTEM.name))
+                )
+            }
+
+            val isSystemDark = isSystemInDarkTheme()
+            val useDarkTheme = when (themeMode) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                ThemeMode.SYSTEM -> isSystemDark
+            }
+
+            StudyPlanTheme(darkTheme = useDarkTheme) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -106,7 +124,12 @@ class MainActivity : ComponentActivity() {
                     StudyPlanScreen(
                         viewModel = viewModel,
                         targetTab = targetTab.value,
-                        onClearTargetTab = { targetTab.value = null }
+                        onClearTargetTab = { targetTab.value = null },
+                        themeMode = themeMode,
+                        onThemeModeChange = { newMode ->
+                            themeMode = newMode
+                            prefs.edit().putString("theme_mode", newMode.name).apply()
+                        }
                     )
                 }
             }
@@ -131,7 +154,9 @@ class MainActivity : ComponentActivity() {
 fun StudyPlanScreen(
     viewModel: MainViewModel,
     targetTab: String? = null,
-    onClearTargetTab: () -> Unit = {}
+    onClearTargetTab: () -> Unit = {},
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit
 ) {
     val context = LocalContext.current
     val topics by viewModel.topics.collectAsState()
@@ -266,11 +291,14 @@ fun StudyPlanScreen(
             0 -> HomeScreen(
                 topics = topics,
                 revisions = revisions,
+                themeMode = themeMode,
+                onThemeModeChange = onThemeModeChange,
                 onAddTopic = {
                     topicToEdit = null
                     defaultSubjectForNew = Subject.Maths
                     showSheet = true
                 },
+                onMarkDone = { revId -> viewModel.markDone(revId) },
                 modifier = modifier
             )
             1 -> ReviseScreen(

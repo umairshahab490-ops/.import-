@@ -1,0 +1,355 @@
+package com.umairshahab.etea.studyplan.ui.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.umairshahab.etea.studyplan.data.local.RevisionEntity
+import com.umairshahab.etea.studyplan.data.local.TopicEntity
+import com.umairshahab.etea.studyplan.domain.RevisionScheduler
+import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
+import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
+import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+@Composable
+fun HorizontalMonthCalendar(
+    revisions: List<RevisionEntity>,
+    topics: List<TopicEntity>,
+    onMarkDone: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val zone = remember { ZoneId.systemDefault() }
+    val now = System.currentTimeMillis()
+    val today = remember { LocalDate.now() }
+
+    val revisionsByDate = remember(revisions, zone) {
+        revisions.filter { it.status == "SCHEDULED" }
+            .groupBy { Instant.ofEpochMilli(it.dueAt).atZone(zone).toLocalDate() }
+    }
+
+    val startMonth = remember { YearMonth.now() }
+    val months = remember(startMonth) {
+        (0L..5L).map { startMonth.plusMonths(it) }
+    }
+
+    var selectedDateForSheet by remember { mutableStateOf<LocalDate?>(null) }
+    val topicMap = remember(topics) { topics.associateBy { it.id } }
+
+    LazyRow(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        items(months, key = { it.toString() }) { month ->
+            MonthCard(
+                month = month,
+                revisionsByDate = revisionsByDate,
+                today = today,
+                now = now,
+                onDayClick = { date ->
+                    selectedDateForSheet = date
+                }
+            )
+        }
+    }
+
+    selectedDateForSheet?.let { date ->
+        val currentDayRevisions = revisionsByDate[date] ?: emptyList()
+        DayRevisionsSheet(
+            date = date,
+            revisions = currentDayRevisions,
+            topicMap = topicMap,
+            onDismiss = { selectedDateForSheet = null },
+            onMarkDone = onMarkDone
+        )
+    }
+}
+
+@Composable
+fun MonthCard(
+    month: YearMonth,
+    revisionsByDate: Map<LocalDate, List<RevisionEntity>>,
+    today: LocalDate,
+    now: Long,
+    onDayClick: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val monthTitle = remember(month) {
+        month.format(DateTimeFormatter.ofPattern("MMM yyyy", Locale.getDefault()))
+    }
+
+    val firstDayOfMonth = remember(month) { month.atDay(1) }
+    val startOffset = remember(firstDayOfMonth) { firstDayOfMonth.dayOfWeek.value - 1 }
+    val daysInMonth = remember(month) { month.lengthOfMonth() }
+    val totalSlots = startOffset + daysInMonth
+    val numWeeks = (totalSlots + 6) / 7
+
+    Card(
+        modifier = modifier.width(326.dp),
+        shape = RoundedCornerShape(20.dp),
+        border = StudyPlanThemeDefaults.glassColors.cardBorder,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // Header Month Year
+            Text(
+                text = monthTitle,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Days of week header (M T W T F S S)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                listOf("M", "T", "W", "T", "F", "S", "S").forEach { label ->
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Week rows
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                for (week in 0 until numWeeks) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        for (dayOfWeek in 0 until 7) {
+                            val slotIndex = week * 7 + dayOfWeek
+                            if (slotIndex < startOffset || slotIndex >= totalSlots) {
+                                Spacer(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
+                                )
+                            } else {
+                                val dayNum = slotIndex - startOffset + 1
+                                val date = month.atDay(dayNum)
+                                val dayRevisions = revisionsByDate[date] ?: emptyList()
+
+                                DayGridCell(
+                                    date = date,
+                                    dayNum = dayNum,
+                                    isToday = date == today,
+                                    dayRevisions = dayRevisions,
+                                    now = now,
+                                    onDayClick = { onDayClick(date) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DayGridCell(
+    date: LocalDate,
+    dayNum: Int,
+    isToday: Boolean,
+    dayRevisions: List<RevisionEntity>,
+    now: Long,
+    onDayClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val hasRevisions = dayRevisions.isNotEmpty()
+    val hasMissed = remember(dayRevisions, now) {
+        dayRevisions.any { it.status == "SCHEDULED" && it.dueAt < now }
+    }
+
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .then(
+                if (hasRevisions) {
+                    Modifier.clickable(
+                        onClick = onDayClick
+                    )
+                } else Modifier
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .then(
+                        if (isToday) Modifier.background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                            CircleShape
+                        ) else Modifier
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = dayNum.toString(),
+                    fontSize = 13.sp,
+                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            if (hasMissed) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFEF4444))
+                        .semantics { contentDescription = "Missed revision on day $dayNum" }
+                )
+            } else if (hasRevisions) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(brush = PrimaryGradientBrush)
+                        .semantics { contentDescription = "Scheduled revision on day $dayNum" }
+                )
+            } else {
+                Spacer(modifier = Modifier.size(6.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DayRevisionsSheet(
+    date: LocalDate,
+    revisions: List<RevisionEntity>,
+    topicMap: Map<Long, TopicEntity>,
+    onDismiss: () -> Unit,
+    onMarkDone: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = StudyPlanThemeDefaults.glassColors.isDark
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val formattedDate = remember(date) {
+        date.format(DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy", Locale.getDefault()))
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = if (isDark) Color(0xFF0B1329) else Color(0xFFF8FAFC),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Revisions for $formattedDate",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = if (revisions.isNotEmpty()) "${revisions.size} revision${if (revisions.size > 1) "s" else ""}" else "Completed",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            if (revisions.isEmpty()) {
+                Text(
+                    text = "All revisions completed for this day! 🎉",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D),
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+            } else {
+                val now = System.currentTimeMillis()
+                revisions.forEach { rev ->
+                    val topic = topicMap[rev.topicId]
+                    RevisionRowItem(
+                        topicTitle = topic?.title ?: "Topic #${rev.topicId}",
+                        subject = topic?.subject ?: "",
+                        formattedDue = RevisionScheduler.format(rev.dueAt),
+                        isMissed = rev.status == "SCHEDULED" && rev.dueAt < now,
+                        onDone = { onMarkDone(rev.id) }
+                    )
+                }
+            }
+        }
+    }
+}

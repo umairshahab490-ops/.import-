@@ -23,6 +23,18 @@ val PrimaryGradientBrush = Brush.horizontalGradient(
     colors = listOf(BluePrimary, PurpleSecondary)
 )
 
+enum class ThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK;
+
+    companion object {
+        fun fromString(name: String?): ThemeMode {
+            return entries.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: SYSTEM
+        }
+    }
+}
+
 data class GlassmorphismColors(
     val isDark: Boolean,
     val canvas: Color,

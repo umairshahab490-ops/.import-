@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,22 +18,21 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.umairshahab.etea.studyplan.data.local.RevisionEntity
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
-import com.umairshahab.etea.studyplan.domain.RevisionScheduler
 
 @Composable
 fun MetricCard(
@@ -93,7 +93,11 @@ fun PlaceholderCalendarCard(modifier: Modifier = Modifier) {
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "📅", fontSize = 22.sp)
+                Text(
+                    text = "📅",
+                    fontSize = 22.sp,
+                    modifier = Modifier.semantics { contentDescription = "Calendar view upcoming" }
+                )
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column {
@@ -162,12 +166,13 @@ fun TopicRowItem(
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
                     onClick = onEdit,
                     shape = RoundedCornerShape(8.dp),
-                    contentPadding = ButtonDefaults.TextButtonContentPadding
+                    modifier = Modifier.defaultMinSize(minWidth = 64.dp, minHeight = 48.dp)
                 ) {
                     Text("Edit", fontSize = 13.sp)
                 }
@@ -179,7 +184,7 @@ fun TopicRowItem(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer
                     ),
-                    contentPadding = ButtonDefaults.TextButtonContentPadding
+                    modifier = Modifier.defaultMinSize(minWidth = 64.dp, minHeight = 48.dp)
                 ) {
                     Text("Delete", fontSize = 13.sp)
                 }
@@ -228,13 +233,30 @@ fun RevisionRowItem(
                         fontWeight = FontWeight.Medium
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = if (isMissed) "Missed: $formattedDue" else "Due: $formattedDue",
-                    fontSize = 13.sp,
-                    color = if (isMissed) Color(0xFFDC2626) else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (isMissed) FontWeight.Medium else FontWeight.Normal
-                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isMissed) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFFFEE2E2),
+                            modifier = Modifier.padding(end = 6.dp)
+                        ) {
+                            Text(
+                                text = "MISSED",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFDC2626),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (isMissed) "Due: $formattedDue" else "Due: $formattedDue",
+                        fontSize = 13.sp,
+                        color = if (isMissed) Color(0xFFDC2626) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (isMissed) FontWeight.SemiBold else FontWeight.Normal
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(12.dp))
             Button(
@@ -243,7 +265,8 @@ fun RevisionRowItem(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isMissed) Color(0xFFDC2626) else Color(0xFF16A34A),
                     contentColor = Color.White
-                )
+                ),
+                modifier = Modifier.defaultMinSize(minWidth = 64.dp, minHeight = 48.dp)
             ) {
                 Text("Done", fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
@@ -265,7 +288,11 @@ fun EmptyStateView(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = emoji, fontSize = 48.sp)
+        Text(
+            text = emoji,
+            fontSize = 48.sp,
+            modifier = Modifier.semantics { contentDescription = title }
+        )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = title,

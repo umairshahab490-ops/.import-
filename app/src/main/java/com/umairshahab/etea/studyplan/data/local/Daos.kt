@@ -12,6 +12,12 @@ interface TopicDao {
     @Query("SELECT * FROM topics ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<TopicEntity>>
 
+    @Query("SELECT * FROM topics WHERE id = :id")
+    suspend fun getById(id: Long): TopicEntity?
+
+    @Query("SELECT * FROM topics")
+    suspend fun getAll(): List<TopicEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(topic: TopicEntity): Long
 
@@ -26,6 +32,15 @@ interface TopicDao {
 interface RevisionDao {
     @Query("SELECT * FROM revisions ORDER BY dueAt ASC")
     fun observeAll(): Flow<List<RevisionEntity>>
+
+    @Query("SELECT * FROM revisions WHERE topicId = :topicId")
+    suspend fun getForTopic(topicId: Long): List<RevisionEntity>
+
+    @Query("SELECT * FROM revisions WHERE status = 'SCHEDULED' AND dueAt < :nowMillis")
+    suspend fun getScheduledPastDue(nowMillis: Long): List<RevisionEntity>
+
+    @Query("SELECT * FROM revisions WHERE status = 'SCHEDULED' AND alertAt BETWEEN :startMillis AND :endMillis")
+    suspend fun getScheduledWithAlertBetween(startMillis: Long, endMillis: Long): List<RevisionEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(revisions: List<RevisionEntity>)

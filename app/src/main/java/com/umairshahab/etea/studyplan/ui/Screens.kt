@@ -145,7 +145,8 @@ fun HomeScreen(
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF3B82F6)
-                    )
+                    ),
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                 ) {
                     Text("+ Add Topic", fontWeight = FontWeight.Bold)
                 }
@@ -371,7 +372,8 @@ fun SubjectsScreen(
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF3B82F6)
-                    )
+                    ),
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                 ) {
                     Text("+ Add", fontWeight = FontWeight.Bold)
                 }

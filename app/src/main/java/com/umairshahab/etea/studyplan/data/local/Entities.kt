@@ -1,6 +1,8 @@
 package com.umairshahab.etea.studyplan.data.local
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "topics")
@@ -16,7 +18,21 @@ data class TopicEntity(
     val intervals: List<Int>
 )
 
-@Entity(tableName = "revisions")
+@Entity(
+    tableName = "revisions",
+    foreignKeys = [
+        ForeignKey(
+            entity = TopicEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["topicId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index(value = ["topicId"]),
+        Index(value = ["dueAt"])
+    ]
+)
 data class RevisionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,

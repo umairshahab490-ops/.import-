@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
     private val db by lazy { (application as StudyPlanApp).database }
 
     private val viewModel: MainViewModel by viewModels {
-        MainViewModel.Factory(application, db.topicDao(), db.revisionDao())
+        MainViewModel.Factory(application, db)
     }
 
     private val targetTab = mutableStateOf<String?>(null)
@@ -333,6 +333,14 @@ fun StudyPlanScreen(
                 },
                 onDeleteTopic = { topicId ->
                     handleDeleteTopic(topicId)
+                },
+                onRestoreBackup = { backupTopics, backupRevisions ->
+                    viewModel.restoreBackup(backupTopics, backupRevisions)
+                },
+                onShowSnackbar = { message ->
+                    scope.launch {
+                        snackbarHostState.showSnackbar(message)
+                    }
                 },
                 modifier = modifier
             )

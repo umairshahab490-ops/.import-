@@ -29,7 +29,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     DATABASE_NAME
                 )
-                    // Note: fallbackToDestructiveMigration is used here during development/schema upgrade; real migrations must replace it before public release.
+                    // Whenever the schema changes in a future round, add a real Migration object in the same commit.
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

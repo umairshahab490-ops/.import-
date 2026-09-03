@@ -26,6 +26,12 @@ interface TopicDao {
 
     @Query("DELETE FROM topics WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM topics")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(topics: List<TopicEntity>)
 }
 
 @Dao
@@ -50,6 +56,9 @@ interface RevisionDao {
 
     @Query("DELETE FROM revisions WHERE topicId = :topicId")
     suspend fun deleteAllForTopic(topicId: Long)
+
+    @Query("DELETE FROM revisions")
+    suspend fun deleteAll()
 
     @Query("UPDATE revisions SET status = :status, completedAt = :completedAt WHERE id = :id")
     suspend fun updateStatus(id: Long, status: String, completedAt: Long?)

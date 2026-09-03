@@ -9,7 +9,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 object RevisionScheduler {
-    val DEFAULT_INTERVALS: List<Int> = listOf(3, 7, 14, 21, 30, 45, 60, 90, 120, 180, 365)
+    const val ALERT_OFFSET_MILLIS: Long = 15 * 60 * 1000L // 15 minutes before
+    val DEFAULT_INTERVALS: List<Int> = listOf(1, 3, 7, 15, 30)
     private val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.ENGLISH)
 
     fun parseIntervals(text: String): List<Int> {
@@ -48,7 +49,7 @@ object RevisionScheduler {
             val dueZdt = baseZdt.plusDays(days.toLong())
             val dueMillis = dueZdt.toInstant().toEpochMilli()
             if (dueMillis > nowMillis) {
-                val alertMillis = dueMillis - 120000L
+                val alertMillis = dueMillis - ALERT_OFFSET_MILLIS
                 revisions.add(
                     RevisionEntity(
                         topicId = topicId,

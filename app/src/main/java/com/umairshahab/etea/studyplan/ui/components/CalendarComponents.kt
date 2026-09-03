@@ -1,5 +1,8 @@
 package com.umairshahab.etea.studyplan.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -69,7 +72,7 @@ fun HorizontalMonthCalendar(
         (0L..5L).map { startMonth.plusMonths(it) }
     }
 
-    var selectedMonth by remember(startMonth) { mutableStateOf(startMonth) }
+    var expandedMonth by remember { mutableStateOf<YearMonth?>(null) }
     var selectedDateForSheet by remember { mutableStateOf<LocalDate?>(null) }
     val topicMap = remember(topics) { topics.associateBy { it.id } }
 
@@ -95,31 +98,56 @@ fun HorizontalMonthCalendar(
                 items(months, key = { it.toString() }) { month ->
                     CompactMonthCard(
                         month = month,
-                        isSelected = month == selectedMonth,
+                        isSelected = month == expandedMonth,
                         revisions = revisions,
                         revisionsByDate = revisionsByDate,
                         now = now,
                         zone = zone,
                         cardWidth = cardWidth,
-                        onClick = { selectedMonth = month }
+                        onClick = {
+                            expandedMonth = if (expandedMonth == month) null else month
+                        }
                     )
                 }
             }
         }
 
+        if (expandedMonth == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 2.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Tap a month to expand",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
+
         // LEVEL 2: Selected Month Detail
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+        AnimatedVisibility(
+            visible = expandedMonth != null,
+            enter = expandVertically(),
+            exit = shrinkVertically()
         ) {
-            SelectedMonthDetailCard(
-                month = selectedMonth,
-                revisionsByDate = revisionsByDate,
-                today = today,
-                now = now,
-                onDayClick = { date -> selectedDateForSheet = date }
-            )
+            expandedMonth?.let { month ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    SelectedMonthDetailCard(
+                        month = month,
+                        revisionsByDate = revisionsByDate,
+                        today = today,
+                        now = now,
+                        onDayClick = { date -> selectedDateForSheet = date }
+                    )
+                }
+            }
         }
     }
 
@@ -188,18 +216,29 @@ fun CompactMonthCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = month.format(DateTimeFormatter.ofPattern("MMM", Locale.getDefault())),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = month.format(DateTimeFormatter.ofPattern("yy", Locale.getDefault())),
-                        fontSize = 9.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column {
+                        Text(
+                            text = month.format(DateTimeFormatter.ofPattern("MMM", Locale.getDefault())),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = month.format(DateTimeFormatter.ofPattern("yy", Locale.getDefault())),
+                            fontSize = 9.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (isSelected) {
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "▲",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
                 if (monthCount > 0) {

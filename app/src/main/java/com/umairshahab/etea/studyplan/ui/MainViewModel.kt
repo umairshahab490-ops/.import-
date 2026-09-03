@@ -5,21 +5,26 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
+import com.umairshahab.etea.studyplan.data.local.AppDatabase
 import com.umairshahab.etea.studyplan.data.local.RevisionDao
 import com.umairshahab.etea.studyplan.data.local.RevisionEntity
 import com.umairshahab.etea.studyplan.data.local.TopicDao
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
 import com.umairshahab.etea.studyplan.domain.RevisionScheduler
 import com.umairshahab.etea.studyplan.notifications.AlertScheduler
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainViewModel(
     application: Application,
-    private val topicDao: TopicDao,
-    private val revisionDao: RevisionDao
+    private val database: AppDatabase,
+    private val topicDao: TopicDao = database.topicDao(),
+    private val revisionDao: RevisionDao = database.revisionDao()
 ) : AndroidViewModel(application) {
 
     val topics: StateFlow<List<TopicEntity>> = topicDao.observeAll()
@@ -194,15 +199,35 @@ class MainViewModel(
         }
     }
 
+    suspend fun restoreBackup(newTopics: List<TopicEntity>, newRevisions: List<RevisionEntity>) = withContext(Dispatchers.IO) {
+        database.withTransaction {
+            revisionDao.deleteAll()
+            topicDao.deleteAll()
+            topicDao.insertAll(newTopics)
+            revisionDao.insertAll(newRevisions)
+        }
+        val app = getApplication<Application>()
+        val now = System.currentTimeMillis()
+        newRevisions.filter { it.status == "SCHEDULED" && it.alertAt > now }.forEach { rev ->
+            val matchingTopic = newTopics.find { it.id == rev.topicId }
+            AlertScheduler.schedule(
+                context = app,
+                revisionId = rev.id,
+                alertAt = rev.alertAt,
+                topicTitle = matchingTopic?.title ?: "Revision",
+                subject = matchingTopic?.subject ?: "Study"
+            )
+        }
+    }
+
     class Factory(
         private val application: Application,
-        private val topicDao: TopicDao,
-        private val revisionDao: RevisionDao
+        private val database: AppDatabase
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
-                return MainViewModel(application, topicDao, revisionDao) as T
+                return MainViewModel(application, database) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

@@ -1,9 +1,11 @@
 package com.umairshahab.etea.studyplan.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -35,7 +37,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.umairshahab.etea.studyplan.data.local.RevisionEntity
@@ -60,34 +64,61 @@ fun HorizontalMonthCalendar(
     val zone = remember { ZoneId.systemDefault() }
     val now = System.currentTimeMillis()
     val today = remember { LocalDate.now() }
+    val startMonth = remember { YearMonth.now() }
+    val months = remember(startMonth) {
+        (0L..5L).map { startMonth.plusMonths(it) }
+    }
+
+    var selectedMonth by remember(startMonth) { mutableStateOf(startMonth) }
+    var selectedDateForSheet by remember { mutableStateOf<LocalDate?>(null) }
+    val topicMap = remember(topics) { topics.associateBy { it.id } }
 
     val revisionsByDate = remember(revisions, zone) {
         revisions.filter { it.status == "SCHEDULED" }
             .groupBy { Instant.ofEpochMilli(it.dueAt).atZone(zone).toLocalDate() }
     }
 
-    val startMonth = remember { YearMonth.now() }
-    val months = remember(startMonth) {
-        (0L..5L).map { startMonth.plusMonths(it) }
-    }
-
-    var selectedDateForSheet by remember { mutableStateOf<LocalDate?>(null) }
-    val topicMap = remember(topics) { topics.associateBy { it.id } }
-
-    LazyRow(
+    Column(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        items(months, key = { it.toString() }) { month ->
-            MonthCard(
-                month = month,
+        // LEVEL 1: Month Strip (1x4 visible)
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            // cardWidth = (screenWidth - 32.dp outer padding - 3 x 8.dp spacing) / 4
+            val cardWidth = (maxWidth - 32.dp - 24.dp) / 4
+
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(months, key = { it.toString() }) { month ->
+                    CompactMonthCard(
+                        month = month,
+                        isSelected = month == selectedMonth,
+                        revisions = revisions,
+                        revisionsByDate = revisionsByDate,
+                        now = now,
+                        zone = zone,
+                        cardWidth = cardWidth,
+                        onClick = { selectedMonth = month }
+                    )
+                }
+            }
+        }
+
+        // LEVEL 2: Selected Month Detail
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            SelectedMonthDetailCard(
+                month = selectedMonth,
                 revisionsByDate = revisionsByDate,
                 today = today,
                 now = now,
-                onDayClick = { date ->
-                    selectedDateForSheet = date
-                }
+                onDayClick = { date -> selectedDateForSheet = date }
             )
         }
     }
@@ -105,7 +136,157 @@ fun HorizontalMonthCalendar(
 }
 
 @Composable
-fun MonthCard(
+fun CompactMonthCard(
+    month: YearMonth,
+    isSelected: Boolean,
+    revisions: List<RevisionEntity>,
+    revisionsByDate: Map<LocalDate, List<RevisionEntity>>,
+    now: Long,
+    zone: ZoneId,
+    cardWidth: Dp,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val monthCount = remember(revisions, month, zone) {
+        revisions.count { rev ->
+            rev.status == "SCHEDULED" &&
+                YearMonth.from(Instant.ofEpochMilli(rev.dueAt).atZone(zone)) == month
+        }
+    }
+
+    val firstDayOfMonth = remember(month) { month.atDay(1) }
+    val startOffset = remember(firstDayOfMonth) { firstDayOfMonth.dayOfWeek.value - 1 }
+    val daysInMonth = remember(month) { month.lengthOfMonth() }
+    val totalSlots = startOffset + daysInMonth
+
+    val cardBorder = if (isSelected) {
+        BorderStroke(2.dp, PrimaryGradientBrush)
+    } else {
+        StudyPlanThemeDefaults.glassColors.cardBorder
+    }
+
+    Card(
+        modifier = modifier
+            .width(cardWidth)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        border = cardBorder,
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 6.dp, vertical = 8.dp)
+        ) {
+            // Header: Month & Year on left, Count pill on right
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = month.format(DateTimeFormatter.ofPattern("MMM", Locale.getDefault())),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = month.format(DateTimeFormatter.ofPattern("yy", Locale.getDefault())),
+                        fontSize = 9.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (monthCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(brush = PrimaryGradientBrush)
+                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = monthCount.toString(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "0",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Mini 7-column dot matrix (NO day numbers)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                for (week in 0 until 6) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        for (dayOfWeek in 0 until 7) {
+                            val slotIndex = week * 7 + dayOfWeek
+                            if (slotIndex < startOffset || slotIndex >= totalSlots) {
+                                Spacer(modifier = Modifier.size(4.dp))
+                            } else {
+                                val dayNum = slotIndex - startOffset + 1
+                                val date = month.atDay(dayNum)
+                                val dayRevisions = revisionsByDate[date] ?: emptyList()
+                                val hasMissed = dayRevisions.any { it.status == "SCHEDULED" && it.dueAt < now }
+                                val hasScheduled = dayRevisions.any { it.status == "SCHEDULED" }
+
+                                if (hasMissed) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(4.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFEF4444))
+                                    )
+                                } else if (hasScheduled) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(4.dp)
+                                            .clip(CircleShape)
+                                            .background(brush = PrimaryGradientBrush)
+                                    )
+                                } else {
+                                    Spacer(modifier = Modifier.size(4.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SelectedMonthDetailCard(
     month: YearMonth,
     revisionsByDate: Map<LocalDate, List<RevisionEntity>>,
     today: LocalDate,
@@ -114,7 +295,7 @@ fun MonthCard(
     modifier: Modifier = Modifier
 ) {
     val monthTitle = remember(month) {
-        month.format(DateTimeFormatter.ofPattern("MMM yyyy", Locale.getDefault()))
+        month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
     }
 
     val firstDayOfMonth = remember(month) { month.atDay(1) }
@@ -124,7 +305,7 @@ fun MonthCard(
     val numWeeks = (totalSlots + 6) / 7
 
     Card(
-        modifier = modifier.width(326.dp),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         border = StudyPlanThemeDefaults.glassColors.cardBorder,
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -137,12 +318,14 @@ fun MonthCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Header Month Year
+            // Header "MMMM yyyy" with gradient text
             Text(
                 text = monthTitle,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                style = TextStyle(
+                    brush = PrimaryGradientBrush,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -169,7 +352,7 @@ fun MonthCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Week rows
+            // Week rows with day numbers (12-13sp), row height >= 44dp
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -185,14 +368,14 @@ fun MonthCard(
                                 Spacer(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(48.dp)
+                                        .height(46.dp)
                                 )
                             } else {
                                 val dayNum = slotIndex - startOffset + 1
                                 val date = month.atDay(dayNum)
                                 val dayRevisions = revisionsByDate[date] ?: emptyList()
 
-                                DayGridCell(
+                                DayDetailCell(
                                     date = date,
                                     dayNum = dayNum,
                                     isToday = date == today,
@@ -211,7 +394,7 @@ fun MonthCard(
 }
 
 @Composable
-fun DayGridCell(
+fun DayDetailCell(
     date: LocalDate,
     dayNum: Int,
     isToday: Boolean,
@@ -227,13 +410,11 @@ fun DayGridCell(
 
     Box(
         modifier = modifier
-            .height(48.dp)
+            .height(46.dp)
             .clip(RoundedCornerShape(8.dp))
             .then(
                 if (hasRevisions) {
-                    Modifier.clickable(
-                        onClick = onDayClick
-                    )
+                    Modifier.clickable(onClick = onDayClick)
                 } else Modifier
             ),
         contentAlignment = Alignment.Center
@@ -246,10 +427,12 @@ fun DayGridCell(
                 modifier = Modifier
                     .size(28.dp)
                     .then(
-                        if (isToday) Modifier.background(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                            CircleShape
-                        ) else Modifier
+                        if (isToday) {
+                            Modifier.background(
+                                brush = PrimaryGradientBrush,
+                                shape = CircleShape
+                            )
+                        } else Modifier
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -257,7 +440,7 @@ fun DayGridCell(
                     text = dayNum.toString(),
                     fontSize = 13.sp,
                     fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    color = if (isToday) Color.White else MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -266,7 +449,7 @@ fun DayGridCell(
             if (hasMissed) {
                 Box(
                     modifier = Modifier
-                        .size(6.dp)
+                        .size(5.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFEF4444))
                         .semantics { contentDescription = "Missed revision on day $dayNum" }
@@ -274,13 +457,13 @@ fun DayGridCell(
             } else if (hasRevisions) {
                 Box(
                     modifier = Modifier
-                        .size(6.dp)
+                        .size(5.dp)
                         .clip(CircleShape)
                         .background(brush = PrimaryGradientBrush)
                         .semantics { contentDescription = "Scheduled revision on day $dayNum" }
                 )
             } else {
-                Spacer(modifier = Modifier.size(6.dp))
+                Spacer(modifier = Modifier.size(5.dp))
             }
         }
     }

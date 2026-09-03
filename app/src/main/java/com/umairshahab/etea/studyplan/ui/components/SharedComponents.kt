@@ -44,36 +44,38 @@ import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
 fun MetricCard(
     label: String,
     count: Int,
-    containerColor: Color,
-    contentColor: Color,
+    containerColor: Color = StudyPlanThemeDefaults.glassColors.cardSurface,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         border = StudyPlanThemeDefaults.glassColors.cardBorder,
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = containerColor,
-            contentColor = contentColor
+            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp, horizontal = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(vertical = 14.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = count.toString(),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = contentColor
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = label,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

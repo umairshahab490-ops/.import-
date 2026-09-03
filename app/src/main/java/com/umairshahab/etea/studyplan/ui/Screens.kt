@@ -81,7 +81,7 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -159,28 +159,25 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 MetricCard(
                     label = "Topics",
                     count = topics.size,
-                    containerColor = glassColors.metricTopicsBg,
-                    contentColor = glassColors.metricTopicsText,
+                    contentColor = if (glassColors.isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
                     modifier = Modifier.weight(1f)
                 )
                 MetricCard(
                     label = "Today",
                     count = dueTodayCount,
-                    containerColor = glassColors.metricTodayBg,
-                    contentColor = glassColors.metricTodayText,
+                    contentColor = if (glassColors.isDark) Color(0xFF4ADE80) else Color(0xFF16A34A),
                     modifier = Modifier.weight(1f)
                 )
                 MetricCard(
                     label = "Missed",
                     count = missedCount,
-                    containerColor = glassColors.metricMissedBg,
-                    contentColor = glassColors.metricMissedText,
+                    contentColor = if (glassColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -191,7 +188,7 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -216,7 +213,7 @@ fun HomeScreen(
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 20.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 HorizontalMonthCalendar(
@@ -233,7 +230,7 @@ fun HomeScreen(
                     emoji = "📚",
                     title = "No topics yet",
                     message = "Start your study journey by tapping + Add Topic above. Choose your subject, title, revision time, and intervals.",
-                    modifier = Modifier.padding(horizontal = 20.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
         } else {
@@ -243,14 +240,14 @@ fun HomeScreen(
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 20.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
 
             items(topics.take(5), key = { it.id }) { topic ->
                 val nextRev = revisions.firstOrNull { it.topicId == topic.id && it.status == "SCHEDULED" && it.dueAt >= now }
                 val nextDueFormatted = nextRev?.let { RevisionScheduler.format(it.dueAt) }
-                Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                     TopicRowItem(
                         topic = topic,
                         nextDueFormatted = nextDueFormatted,
@@ -299,7 +296,7 @@ fun ReviseScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
@@ -418,7 +415,7 @@ fun SubjectsScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
@@ -521,7 +518,7 @@ fun AllTopicsScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {

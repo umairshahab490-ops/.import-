@@ -5,5 +5,7 @@
     <color name="secondary">#8B5CF6</color>
     <color name="background">#F8FAFC</color>
     <color name="surface">#FFFFFF</color>
-    <color name="ic_launcher_background">#3DDC84</color>
+    <color name="canvas_color">#020617</color>
+    <color name="splash_background">#020617</color>
+    <color name="ic_launcher_background">#020617</color>
 </resources>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M22,12 h64 a16,16 0 0 1 16,16 v64 a16,16 0 0 1 -16,16 h-64 a16,16 0 0 1 -16,-16 v-64 a16,16 0 0 1 16,-16 z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#3B82F6" />
+                <item android:offset="1.0" android:color="#8B5CF6" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Crisp white open book & study pages symbol -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,34 c0,-2.2 1.8,-4 4,-4 h18 c3.3,0 6,2.7 6,6 v38 c-2,-1.2 -4.5,-2 -7,-2 h-17 c-2.2,0 -4,-1.8 -4,-4 z M78,34 c0,-2.2 -1.8,-4 -4,-4 h-18 c-3.3,0 -6,2.7 -6,6 v38 c2,-1.2 4.5,-2 7,-2 h17 c2.2,0 4,-1.8 4,-4 z" />
+    <path
+        android:fillColor="#E0E7FF"
+        android:pathData="M52,30 h4 v20 l-2,-2 l-2,2 z" />
+</vector>

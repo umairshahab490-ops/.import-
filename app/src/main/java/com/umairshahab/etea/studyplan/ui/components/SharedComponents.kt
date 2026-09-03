@@ -1,9 +1,12 @@
 package com.umairshahab.etea.studyplan.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -26,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -33,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
+import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
+import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
 
 @Composable
 fun MetricCard(
@@ -44,7 +50,9 @@ fun MetricCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
+        border = StudyPlanThemeDefaults.glassColors.cardBorder,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = containerColor,
             contentColor = contentColor
@@ -75,9 +83,11 @@ fun MetricCard(
 fun PlaceholderCalendarCard(modifier: Modifier = Modifier) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
+        border = StudyPlanThemeDefaults.glassColors.cardBorder,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
         )
     ) {
         Row(
@@ -128,11 +138,12 @@ fun TopicRowItem(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(20.dp),
+        border = StudyPlanThemeDefaults.glassColors.cardBorder,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
+        )
     ) {
         Column(
             modifier = Modifier
@@ -171,20 +182,20 @@ fun TopicRowItem(
             ) {
                 OutlinedButton(
                     onClick = onEdit,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.defaultMinSize(minWidth = 64.dp, minHeight = 48.dp)
+                    shape = CircleShape,
+                    modifier = Modifier.defaultMinSize(minWidth = 64.dp, minHeight = 44.dp)
                 ) {
                     Text("Edit", fontSize = 13.sp)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
                     onClick = onDelete,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
                         contentColor = MaterialTheme.colorScheme.onErrorContainer
                     ),
-                    modifier = Modifier.defaultMinSize(minWidth = 64.dp, minHeight = 48.dp)
+                    modifier = Modifier.defaultMinSize(minWidth = 64.dp, minHeight = 44.dp)
                 ) {
                     Text("Delete", fontSize = 13.sp)
                 }
@@ -202,13 +213,24 @@ fun RevisionRowItem(
     onDone: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = StudyPlanThemeDefaults.glassColors.isDark
+    val containerColor = if (isMissed) {
+        if (isDark) Color(0xFF7F1D1D).copy(alpha = 0.35f) else Color(0xFFFEF2F2).copy(alpha = 0.85f)
+    } else {
+        StudyPlanThemeDefaults.glassColors.cardSurface
+    }
+    val borderColor = if (isMissed) {
+        if (isDark) Color(0xFFEF4444).copy(alpha = 0.35f) else Color(0xFFFCA5A5).copy(alpha = 0.60f)
+    } else {
+        if (isDark) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.30f)
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isMissed) Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
             modifier = Modifier
@@ -238,22 +260,27 @@ fun RevisionRowItem(
                     if (isMissed) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
-                            color = Color(0xFFFEE2E2),
+                            color = if (isDark) Color(0xFF991B1B) else Color(0xFFFEE2E2),
                             modifier = Modifier.padding(end = 6.dp)
                         ) {
                             Text(
                                 text = "MISSED",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFDC2626),
+                                color = if (isDark) Color(0xFFFEE2E2) else Color(0xFFDC2626),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
                     }
+                    val textColor = if (isMissed) {
+                        if (isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                     Text(
-                        text = if (isMissed) "Due: $formattedDue" else "Due: $formattedDue",
+                        text = "Due: $formattedDue",
                         fontSize = 13.sp,
-                        color = if (isMissed) Color(0xFFDC2626) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = textColor,
                         fontWeight = if (isMissed) FontWeight.SemiBold else FontWeight.Normal
                     )
                 }
@@ -261,15 +288,80 @@ fun RevisionRowItem(
             Spacer(modifier = Modifier.width(12.dp))
             Button(
                 onClick = onDone,
-                shape = RoundedCornerShape(20.dp),
+                shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isMissed) Color(0xFFDC2626) else Color(0xFF16A34A),
                     contentColor = Color.White
                 ),
-                modifier = Modifier.defaultMinSize(minWidth = 64.dp, minHeight = 48.dp)
+                modifier = Modifier.defaultMinSize(minWidth = 68.dp, minHeight = 44.dp)
             ) {
                 Text("Done", fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
+        }
+    }
+}
+
+@Composable
+fun GradientPillButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        shape = CircleShape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.Transparent,
+            disabledContainerColor = Color.Transparent
+        ),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+        modifier = modifier
+            .defaultMinSize(minHeight = 44.dp)
+            .background(
+                brush = if (enabled) PrimaryGradientBrush
+                else Brush.horizontalGradient(listOf(Color(0xFF64748B), Color(0xFF94A3B8))),
+                shape = CircleShape
+            )
+    ) {
+        Text(
+            text = text,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            color = Color.White
+        )
+    }
+}
+
+@Composable
+fun GradientPillChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = if (selected) Color.Transparent else StudyPlanThemeDefaults.glassColors.cardSurface,
+        border = if (selected) null else StudyPlanThemeDefaults.glassColors.cardBorder,
+        modifier = modifier
+            .then(
+                if (selected) Modifier.background(PrimaryGradientBrush, shape = CircleShape)
+                else Modifier
+            )
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                fontSize = 13.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

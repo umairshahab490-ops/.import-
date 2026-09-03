@@ -10,15 +10,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -42,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
 import com.umairshahab.etea.studyplan.domain.RevisionScheduler
 import com.umairshahab.etea.studyplan.domain.Subject
+import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,10 +97,12 @@ fun TopicSheet(
 
     val isSaveEnabled = title.isNotBlank() && parsedIntervals.isNotEmpty()
     val scrollState = rememberScrollState()
+    val isDark = StudyPlanThemeDefaults.glassColors.isDark
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        containerColor = if (isDark) Color(0xFF0B1329) else Color(0xFFF8FAFC),
         modifier = modifier
     ) {
         Column(
@@ -136,15 +134,10 @@ fun TopicSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Subject.entries.forEach { subj ->
-                    val isSelected = subj == selectedSubject
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { selectedSubject = subj },
-                        label = { Text(subj.displayName) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                    GradientPillChip(
+                        text = subj.displayName,
+                        selected = subj == selectedSubject,
+                        onClick = { selectedSubject = subj }
                     )
                 }
             }
@@ -252,7 +245,8 @@ fun TopicSheet(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Save pill button
-            Button(
+            GradientPillButton(
+                text = if (topicToEdit == null) "Save Topic" else "Update Topic",
                 onClick = {
                     if (isSaveEnabled) {
                         onSave(
@@ -268,18 +262,8 @@ fun TopicSheet(
                 enabled = isSaveEnabled,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(25.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Text(
-                    text = if (topicToEdit == null) "Save Topic" else "Update Topic",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                    .height(50.dp)
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
         }

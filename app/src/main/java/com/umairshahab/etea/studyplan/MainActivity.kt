@@ -14,6 +14,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -39,11 +41,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -57,6 +61,8 @@ import com.umairshahab.etea.studyplan.ui.MainViewModel
 import com.umairshahab.etea.studyplan.ui.ReviseScreen
 import com.umairshahab.etea.studyplan.ui.SubjectsScreen
 import com.umairshahab.etea.studyplan.ui.components.TopicSheet
+import com.umairshahab.etea.studyplan.ui.theme.StudyPlanTheme
+import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -71,6 +77,7 @@ class MainActivity : ComponentActivity() {
     private val targetTab = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
 
         handleIntent(intent)
@@ -89,10 +96,12 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-            MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+            StudyPlanTheme {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .background(StudyPlanThemeDefaults.glassColors.backgroundGradient)
                 ) {
                     StudyPlanScreen(
                         viewModel = viewModel,
@@ -224,9 +233,13 @@ fun StudyPlanScreen(
     )
 
     Scaffold(
+        containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            NavigationBar {
+            val isDark = StudyPlanThemeDefaults.glassColors.isDark
+            NavigationBar(
+                containerColor = if (isDark) Color(0xFF020617).copy(alpha = 0.88f) else Color(0xFFF8FAFC).copy(alpha = 0.88f)
+            ) {
                 navItems.forEachIndexed { index, item ->
                     val isSelected = selectedTab == index
                     NavigationBarItem(

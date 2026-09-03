@@ -2,7 +2,6 @@ package com.umairshahab.etea.studyplan.ui
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,13 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,7 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -40,10 +32,14 @@ import com.umairshahab.etea.studyplan.data.local.TopicEntity
 import com.umairshahab.etea.studyplan.domain.RevisionScheduler
 import com.umairshahab.etea.studyplan.domain.Subject
 import com.umairshahab.etea.studyplan.ui.components.EmptyStateView
+import com.umairshahab.etea.studyplan.ui.components.GradientPillButton
+import com.umairshahab.etea.studyplan.ui.components.GradientPillChip
 import com.umairshahab.etea.studyplan.ui.components.MetricCard
 import com.umairshahab.etea.studyplan.ui.components.PlaceholderCalendarCard
 import com.umairshahab.etea.studyplan.ui.components.RevisionRowItem
 import com.umairshahab.etea.studyplan.ui.components.TopicRowItem
+import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
+import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
 
 @Composable
 fun HomeScreen(
@@ -60,11 +56,7 @@ fun HomeScreen(
         it.status == "SCHEDULED" && it.dueAt < now
     }
 
-    val gradientBrush = remember {
-        Brush.linearGradient(
-            colors = listOf(Color(0xFF3B82F6), Color(0xFF8B5CF6))
-        )
-    }
+    val glassColors = StudyPlanThemeDefaults.glassColors
 
     LazyColumn(
         modifier = modifier
@@ -81,7 +73,7 @@ fun HomeScreen(
                 Text(
                     text = "SP",
                     style = TextStyle(
-                        brush = gradientBrush,
+                        brush = PrimaryGradientBrush,
                         fontSize = 36.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -107,22 +99,22 @@ fun HomeScreen(
                 MetricCard(
                     label = "Topics",
                     count = topics.size,
-                    containerColor = Color(0xFFEFF6FF),
-                    contentColor = Color(0xFF1D4ED8),
+                    containerColor = glassColors.metricTopicsBg,
+                    contentColor = glassColors.metricTopicsText,
                     modifier = Modifier.weight(1f)
                 )
                 MetricCard(
                     label = "Today",
                     count = dueTodayCount,
-                    containerColor = Color(0xFFF0FDF4),
-                    contentColor = Color(0xFF15803D),
+                    containerColor = glassColors.metricTodayBg,
+                    contentColor = glassColors.metricTodayText,
                     modifier = Modifier.weight(1f)
                 )
                 MetricCard(
                     label = "Missed",
                     count = missedCount,
-                    containerColor = Color(0xFFFEF2F2),
-                    contentColor = Color(0xFFB91C1C),
+                    containerColor = glassColors.metricMissedBg,
+                    contentColor = glassColors.metricMissedText,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -141,16 +133,10 @@ fun HomeScreen(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Button(
-                    onClick = onAddTopic,
-                    shape = RoundedCornerShape(24.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF3B82F6)
-                    ),
-                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                ) {
-                    Text("+ Add Topic", fontWeight = FontWeight.Bold)
-                }
+                GradientPillButton(
+                    text = "+ Add Topic",
+                    onClick = onAddTopic
+                )
             }
         }
 
@@ -204,6 +190,7 @@ fun ReviseScreen(
 ) {
     val now = System.currentTimeMillis()
     val topicMap = remember(topics) { topics.associateBy { it.id } }
+    val isDark = StudyPlanThemeDefaults.glassColors.isDark
 
     val dueToday = remember(revisions, now) {
         revisions.filter {
@@ -261,7 +248,7 @@ fun ReviseScreen(
                     text = "Due Today (${dueToday.size})",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF15803D)
+                    color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
                 )
             }
             items(dueToday, key = { it.id }) { rev ->
@@ -283,7 +270,7 @@ fun ReviseScreen(
                     text = "Missed Revisions (${missed.size})",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFB91C1C)
+                    color = if (isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
                 )
             }
             items(missed, key = { it.id }) { rev ->
@@ -368,16 +355,10 @@ fun SubjectsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Button(
-                    onClick = { onAddTopicForSubject(selectedSubject) },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF3B82F6)
-                    ),
-                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                ) {
-                    Text("+ Add", fontWeight = FontWeight.Bold)
-                }
+                GradientPillButton(
+                    text = "+ Add",
+                    onClick = { onAddTopicForSubject(selectedSubject) }
+                )
             }
         }
 
@@ -390,15 +371,10 @@ fun SubjectsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Subject.entries.forEach { subj ->
-                    val isSelected = subj == selectedSubject
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { selectedSubject = subj },
-                        label = { Text(subj.displayName, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                    GradientPillChip(
+                        text = subj.displayName,
+                        selected = subj == selectedSubject,
+                        onClick = { selectedSubject = subj }
                     )
                 }
             }

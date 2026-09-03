@@ -12,8 +12,8 @@ android {
         applicationId = "com.umairshahab.etea.studyplan"
         minSdk = 24
         targetSdk = 34
-        versionCode = 11
-        versionName = "1.2.0"
+        versionCode = 12
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -26,9 +26,9 @@ android {
         if (keystorePath != null) {
             create("ci") {
                 storeFile = file(keystorePath)
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-                keyAlias = System.getenv("KEY_ALIAS") ?: ""
-                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+                storePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: ""
+                keyAlias = System.getenv("KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: ""
+                keyPassword = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: ""
             }
         }
     }
@@ -78,6 +78,7 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
     implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")

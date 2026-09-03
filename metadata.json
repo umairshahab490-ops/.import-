@@ -1,0 +1,6 @@
+{
+  "name": "Study Plan",
+  "description": "ETEA Study Plan native Android project generator and interactive preview with static revision scheduling.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,41 @@
+package com.umairshahab.etea.studyplan.data.local
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface TopicDao {
+    @Query("SELECT * FROM topics ORDER BY createdAt DESC")
+    fun observeAll(): Flow<List<TopicEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(topic: TopicEntity): Long
+
+    @Update
+    suspend fun update(topic: TopicEntity)
+
+    @Query("DELETE FROM topics WHERE id = :id")
+    suspend fun deleteById(id: Long)
+}
+
+@Dao
+interface RevisionDao {
+    @Query("SELECT * FROM revisions ORDER BY dueAt ASC")
+    fun observeAll(): Flow<List<RevisionEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(revisions: List<RevisionEntity>)
+
+    @Query("DELETE FROM revisions WHERE topicId = :topicId AND status = 'SCHEDULED'")
+    suspend fun deleteScheduledForTopic(topicId: Long)
+
+    @Query("DELETE FROM revisions WHERE topicId = :topicId")
+    suspend fun deleteAllForTopic(topicId: Long)
+
+    @Query("UPDATE revisions SET status = :status, completedAt = :completedAt WHERE id = :id")
+    suspend fun updateStatus(id: Long, status: String, completedAt: Long?)
+}

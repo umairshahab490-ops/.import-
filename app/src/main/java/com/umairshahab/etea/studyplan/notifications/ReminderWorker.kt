@@ -3,6 +3,7 @@ package com.umairshahab.etea.studyplan.notifications
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.umairshahab.etea.studyplan.StudyPlanApp
 import com.umairshahab.etea.studyplan.data.local.AppDatabase
 
 class ReminderWorker(
@@ -12,7 +13,8 @@ class ReminderWorker(
 
     override suspend fun doWork(): Result {
         val context = applicationContext
-        val db = AppDatabase.getInstance(context)
+        val app = context as? StudyPlanApp
+        val db = app?.database ?: AppDatabase.getInstance(context)
         val topicDao = db.topicDao()
         val revisionDao = db.revisionDao()
 
@@ -31,8 +33,8 @@ class ReminderWorker(
             )
         }
 
-        // 2. Schedule alarms for revisions whose alertAt falls in the next 30 minutes
-        val windowEnd = now + 30 * 60 * 1000L
+        // 2. Schedule alarms for revisions whose alertAt falls within the next 48 hours (tops up alarms)
+        val windowEnd = now + 48L * 60 * 60 * 1000L
         val upcomingRevisions = revisionDao.getScheduledWithAlertBetween(now, windowEnd)
         for (rev in upcomingRevisions) {
             val topic = topicDao.getById(rev.topicId)

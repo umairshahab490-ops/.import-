@@ -1,9 +1,14 @@
 package com.umairshahab.etea.studyplan
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -11,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -22,7 +28,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -39,7 +47,6 @@ import androidx.core.content.ContextCompat
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.umairshahab.etea.studyplan.data.local.AppDatabase
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
 import com.umairshahab.etea.studyplan.domain.Subject
 import com.umairshahab.etea.studyplan.notifications.NotificationHelper
@@ -55,14 +62,18 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
 
-    private val db by lazy { AppDatabase.getInstance(applicationContext) }
+    private val db by lazy { (application as StudyPlanApp).database }
 
     private val viewModel: MainViewModel by viewModels {
         MainViewModel.Factory(application, db.topicDao(), db.revisionDao())
     }
 
+    private val targetTab = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        handleIntent(intent)
 
         // 1. Initialize notification channels
         NotificationHelper.createChannels(applicationContext)
@@ -83,16 +94,36 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    StudyPlanApp(viewModel = viewModel)
+                    StudyPlanScreen(
+                        viewModel = viewModel,
+                        targetTab = targetTab.value,
+                        onClearTargetTab = { targetTab.value = null }
+                    )
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        intent?.getStringExtra("open_tab")?.let {
+            targetTab.value = it
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudyPlanApp(viewModel: MainViewModel) {
+fun StudyPlanScreen(
+    viewModel: MainViewModel,
+    targetTab: String? = null,
+    onClearTargetTab: () -> Unit = {}
+) {
     val context = LocalContext.current
     val topics by viewModel.topics.collectAsState()
     val revisions by viewModel.revisions.collectAsState()
@@ -104,6 +135,14 @@ fun StudyPlanApp(viewModel: MainViewModel) {
     var showSheet by remember { mutableStateOf(false) }
     var topicToEdit by remember { mutableStateOf<TopicEntity?>(null) }
     var defaultSubjectForNew by remember { mutableStateOf(Subject.Maths) }
+    var showBatteryOptimizationDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(targetTab) {
+        if (targetTab == "revise") {
+            selectedTab = 1
+            onClearTargetTab()
+        }
+    }
 
     // Permission launcher for Android 13+ (API 33+)
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -120,6 +159,44 @@ fun StudyPlanApp(viewModel: MainViewModel) {
             ) == PackageManager.PERMISSION_GRANTED
             if (!hasPermission) {
                 permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    fun checkBatteryOptimizationPrompt() {
+        val prefs = context.getSharedPreferences("study_plan_prefs", Context.MODE_PRIVATE)
+        val alreadyPrompted = prefs.getBoolean("battery_opt_prompted", false)
+        if (!alreadyPrompted) {
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val isIgnoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
+            } else {
+                true
+            }
+            if (!isIgnoring) {
+                showBatteryOptimizationDialog = true
+            }
+        }
+    }
+
+    fun dismissBatteryOptimizationPrompt() {
+        val prefs = context.getSharedPreferences("study_plan_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("battery_opt_prompted", true).apply()
+        showBatteryOptimizationDialog = false
+    }
+
+    fun openBatteryOptimizationSettings() {
+        dismissBatteryOptimizationPrompt()
+        try {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = Uri.parse("package:${context.packageName}")
+            }
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            try {
+                context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            } catch (_: Exception) {
+                // Fallback silently if intent cannot be handled
             }
         }
     }
@@ -229,6 +306,7 @@ fun StudyPlanApp(viewModel: MainViewModel) {
                     topicToEdit = null
                 },
                 onSave = { subject, title, chapter, hour, minute, intervals ->
+                    val isFirstTopic = topics.isEmpty()
                     requestNotificationPermissionIfFirstTopic()
                     if (topicToEdit == null) {
                         viewModel.addTopic(subject, title, chapter, hour, minute, intervals)
@@ -237,6 +315,31 @@ fun StudyPlanApp(viewModel: MainViewModel) {
                     }
                     showSheet = false
                     topicToEdit = null
+                    if (isFirstTopic) {
+                        checkBatteryOptimizationPrompt()
+                    }
+                }
+            )
+        }
+
+        if (showBatteryOptimizationDialog) {
+            AlertDialog(
+                onDismissRequest = { dismissBatteryOptimizationPrompt() },
+                title = { Text(text = "Enable Timely Revision Alerts") },
+                text = {
+                    Text(
+                        text = "To guarantee revision alarms ring on schedule when your phone is locked or idle, please exempt Study Plan from battery optimizations."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { openBatteryOptimizationSettings() }) {
+                        Text(text = "Allow")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { dismissBatteryOptimizationPrompt() }) {
+                        Text(text = "Not Now")
+                    }
                 }
             )
         }

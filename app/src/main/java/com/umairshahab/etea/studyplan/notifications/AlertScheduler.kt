@@ -7,6 +7,8 @@ import android.content.Intent
 import android.os.Build
 
 object AlertScheduler {
+    private const val WINDOW_HOURS_MS = 48L * 60 * 60 * 1000L
+
     fun schedule(
         context: Context,
         revisionId: Long,
@@ -14,7 +16,8 @@ object AlertScheduler {
         topicTitle: String,
         subject: String
     ) {
-        if (alertAt <= System.currentTimeMillis()) return
+        val now = System.currentTimeMillis()
+        if (alertAt <= now || alertAt > now + WINDOW_HOURS_MS) return
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val intent = Intent(context, AlertReceiver::class.java).apply {

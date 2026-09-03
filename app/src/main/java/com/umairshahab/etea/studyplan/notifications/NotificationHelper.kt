@@ -14,6 +14,8 @@ import com.umairshahab.etea.studyplan.R
 object NotificationHelper {
     const val CHANNEL_REMINDERS = "revision_reminders"
     const val CHANNEL_MISSED = "missed_revisions"
+    const val GROUP_KEY = "study_plan_revisions"
+    const val SUMMARY_NOTIFICATION_ID = 999999
 
     fun createChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -50,11 +52,23 @@ object NotificationHelper {
     ) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("open_tab", "revise")
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
             revisionId.toInt(),
             intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val markDoneIntent = Intent(context, AlertReceiver::class.java).apply {
+            action = AlertReceiver.ACTION_MARK_DONE
+            putExtra(AlertReceiver.EXTRA_REVISION_ID, revisionId)
+        }
+        val markDonePendingIntent = PendingIntent.getBroadcast(
+            context,
+            (revisionId + 200000L).toInt(),
+            markDoneIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -64,11 +78,14 @@ object NotificationHelper {
             .setContentText("Subject: $subject • Scheduled revision session starts in 2 minutes.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
+            .addAction(0, "Mark Done", markDonePendingIntent)
+            .setGroup(GROUP_KEY)
             .setAutoCancel(true)
             .build()
 
         try {
             NotificationManagerCompat.from(context).notify(revisionId.toInt(), notification)
+            updateGroupSummary(context)
         } catch (_: SecurityException) {
             // Permission denied or restricted; fail silently
         }
@@ -82,6 +99,7 @@ object NotificationHelper {
     ) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("open_tab", "revise")
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -96,13 +114,65 @@ object NotificationHelper {
             .setContentText("Subject: $subject • This revision was missed. Tap to review and complete.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
+            .setGroup(GROUP_KEY)
             .setAutoCancel(true)
             .build()
 
         try {
             NotificationManagerCompat.from(context).notify((revisionId + 100000L).toInt(), notification)
+            updateGroupSummary(context)
         } catch (_: SecurityException) {
             // Permission denied or restricted; fail silently
+        }
+    }
+
+    fun cancelNotification(context: Context, notificationId: Int) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            ?: return
+        notificationManager.cancel(notificationId)
+        updateGroupSummary(context)
+    }
+
+    fun updateGroupSummary(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                ?: return
+            val activeNotifications = notificationManager.activeNotifications
+            val groupNotifications = activeNotifications.filter {
+                it.id != SUMMARY_NOTIFICATION_ID && it.notification.group == GROUP_KEY
+            }
+            val count = groupNotifications.size
+            if (count >= 2) {
+                val intent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra("open_tab", "revise")
+                }
+                val pendingIntent = PendingIntent.getActivity(
+                    context,
+                    SUMMARY_NOTIFICATION_ID,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                val summaryNotification = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
+                    .setSmallIcon(R.drawable.ic_launcher)
+                    .setContentTitle("Study Plan Revisions")
+                    .setContentText("$count revisions waiting")
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setGroup(GROUP_KEY)
+                    .setGroupSummary(true)
+                    .setAutoCancel(true)
+                    .setContentIntent(pendingIntent)
+                    .build()
+
+                try {
+                    notificationManager.notify(SUMMARY_NOTIFICATION_ID, summaryNotification)
+                } catch (_: SecurityException) {
+                    // Permission denied or restricted; fail silently
+                }
+            } else {
+                notificationManager.cancel(SUMMARY_NOTIFICATION_ID)
+            }
         }
     }
 }

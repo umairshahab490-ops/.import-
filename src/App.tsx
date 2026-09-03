@@ -473,7 +473,6 @@ export default function App() {
                       </span>
                       <div>
                         <h2 className="text-xl font-bold text-slate-900 leading-tight">Study Plan</h2>
-                        <p className="text-xs text-slate-500">Offline Mastery Tracker</p>
                       </div>
                     </div>
 

@@ -56,14 +56,14 @@ fun TopicSheet(
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
-    var selectedSubject by remember {
+    var selectedSubject by remember(topicToEdit, initialSubject) {
         mutableStateOf(
             topicToEdit?.let { Subject.fromName(it.subject) } ?: initialSubject
         )
     }
-    var title by remember { mutableStateOf(topicToEdit?.title ?: "") }
-    var chapter by remember { mutableStateOf(topicToEdit?.chapter ?: "") }
-    var intervalsText by remember {
+    var title by remember(topicToEdit) { mutableStateOf(topicToEdit?.title ?: "") }
+    var chapter by remember(topicToEdit) { mutableStateOf(topicToEdit?.chapter ?: "") }
+    var intervalsText by remember(topicToEdit) {
         mutableStateOf(
             topicToEdit?.intervals?.joinToString(",")
                 ?: RevisionScheduler.DEFAULT_INTERVALS.joinToString(",")

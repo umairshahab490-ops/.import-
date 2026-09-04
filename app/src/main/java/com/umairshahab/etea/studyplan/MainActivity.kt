@@ -14,14 +14,32 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -45,7 +63,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -69,6 +89,8 @@ import com.umairshahab.etea.studyplan.ui.MainViewModel
 import com.umairshahab.etea.studyplan.ui.ReviseScreen
 import com.umairshahab.etea.studyplan.ui.SubjectsScreen
 import com.umairshahab.etea.studyplan.ui.components.TopicSheet
+import com.umairshahab.etea.studyplan.ui.theme.Motion
+import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanTheme
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
 import com.umairshahab.etea.studyplan.ui.theme.ThemeMode
@@ -178,6 +200,7 @@ fun StudyPlanScreen(
     var showSheet by remember { mutableStateOf(false) }
     var topicToEdit by remember { mutableStateOf<TopicEntity?>(null) }
     var defaultSubjectForNew by remember { mutableStateOf(Subject.Maths) }
+    var currentSubjectInTab by remember { mutableStateOf(Subject.Maths) }
     var showBatteryOptimizationDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(targetTab) {
@@ -328,6 +351,52 @@ fun StudyPlanScreen(
     Scaffold(
         containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            val isFabVisible = selectedTab != 1
+            AnimatedVisibility(
+                visible = isFabVisible,
+                enter = scaleIn(
+                    animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                ) + fadeIn(
+                    animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                ),
+                exit = scaleOut(
+                    animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                ) + fadeOut(
+                    animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                )
+            ) {
+                val interactionSource = remember { MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
+                val elevation = if (isPressed) 8.dp else 4.dp
+
+                FloatingActionButton(
+                    onClick = {
+                        topicToEdit = null
+                        defaultSubjectForNew = if (selectedTab == 2) currentSubjectInTab else Subject.Maths
+                        showSheet = true
+                    },
+                    shape = CircleShape,
+                    containerColor = Color.Transparent,
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = elevation,
+                        pressedElevation = elevation
+                    ),
+                    interactionSource = interactionSource,
+                    modifier = Modifier
+                        .semantics { contentDescription = "Add Topic" }
+                        .shadow(elevation = elevation, shape = CircleShape)
+                        .background(brush = PrimaryGradientBrush, shape = CircleShape)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_add),
+                        contentDescription = "Add Topic",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        },
         bottomBar = {
             val isDark = StudyPlanThemeDefaults.glassColors.isDark
             NavigationBar(
@@ -335,6 +404,14 @@ fun StudyPlanScreen(
             ) {
                 navItems.forEachIndexed { index, item ->
                     val isSelected = selectedTab == index
+                    val iconScale by animateFloatAsState(
+                        targetValue = if (isSelected) 1.15f else 1.0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "tab_icon_scale"
+                    )
                     NavigationBarItem(
                         selected = isSelected,
                         onClick = { selectedTab = index },
@@ -343,7 +420,12 @@ fun StudyPlanScreen(
                                 painter = painterResource(id = item.iconRes),
                                 contentDescription = "${item.label} tab",
                                 tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .graphicsLayer {
+                                        scaleX = iconScale
+                                        scaleY = iconScale
+                                    }
                             )
                         },
                         label = {
@@ -368,59 +450,94 @@ fun StudyPlanScreen(
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)
 
-        when (selectedTab) {
-            0 -> HomeScreen(
-                topics = topics,
-                revisions = revisions,
-                themeMode = themeMode,
-                onThemeModeChange = onThemeModeChange,
-                onAddTopic = {
-                    topicToEdit = null
-                    defaultSubjectForNew = Subject.Maths
-                    showSheet = true
-                },
-                onMarkDone = { revId -> viewModel.markDone(revId) },
-                onNavigateToTopics = { selectedTab = 3 },
-                onExportBackup = { exportLauncher.launch("studyplan_backup.json") },
-                onImportBackup = { importLauncher.launch(arrayOf("application/json", "*/*")) },
-                onEnableBackgroundAlerts = { openBatteryOptimizationSettings() },
-                modifier = modifier
-            )
-            1 -> ReviseScreen(
-                topics = topics,
-                revisions = revisions,
-                onMarkDone = { revId -> viewModel.markDone(revId) },
-                modifier = modifier
-            )
-            2 -> SubjectsScreen(
-                topics = topics,
-                revisions = revisions,
-                onEditTopic = { topic ->
-                    topicToEdit = topic
-                    showSheet = true
-                },
-                onDeleteTopic = { topicId ->
-                    handleDeleteTopic(topicId)
-                },
-                onAddTopicForSubject = { subject ->
-                    topicToEdit = null
-                    defaultSubjectForNew = subject
-                    showSheet = true
-                },
-                modifier = modifier
-            )
-            3 -> AllTopicsScreen(
-                topics = topics,
-                revisions = revisions,
-                onEditTopic = { topic ->
-                    topicToEdit = topic
-                    showSheet = true
-                },
-                onDeleteTopic = { topicId ->
-                    handleDeleteTopic(topicId)
-                },
-                modifier = modifier
-            )
+        AnimatedContent(
+            targetState = selectedTab,
+            transitionSpec = {
+                if (targetState > initialState) {
+                    (slideInHorizontally(
+                        animationSpec = tween(durationMillis = Motion.MEDIUM, easing = Motion.STANDARD),
+                        initialOffsetX = { fullWidth -> fullWidth }
+                    ) + fadeIn(
+                        animationSpec = tween(durationMillis = Motion.MEDIUM, easing = Motion.STANDARD)
+                    )).togetherWith(
+                        slideOutHorizontally(
+                            animationSpec = tween(durationMillis = Motion.MEDIUM, easing = Motion.STANDARD),
+                            targetOffsetX = { fullWidth -> -fullWidth }
+                        ) + fadeOut(
+                            animationSpec = tween(durationMillis = Motion.MEDIUM, easing = Motion.STANDARD)
+                        )
+                    )
+                } else {
+                    (slideInHorizontally(
+                        animationSpec = tween(durationMillis = Motion.MEDIUM, easing = Motion.STANDARD),
+                        initialOffsetX = { fullWidth -> -fullWidth }
+                    ) + fadeIn(
+                        animationSpec = tween(durationMillis = Motion.MEDIUM, easing = Motion.STANDARD)
+                    )).togetherWith(
+                        slideOutHorizontally(
+                            animationSpec = tween(durationMillis = Motion.MEDIUM, easing = Motion.STANDARD),
+                            targetOffsetX = { fullWidth -> fullWidth }
+                        ) + fadeOut(
+                            animationSpec = tween(durationMillis = Motion.MEDIUM, easing = Motion.STANDARD)
+                        )
+                    )
+                }
+            },
+            label = "screen_tab_transition",
+            modifier = modifier.fillMaxSize()
+        ) { tab ->
+            when (tab) {
+                0 -> HomeScreen(
+                    topics = topics,
+                    revisions = revisions,
+                    themeMode = themeMode,
+                    onThemeModeChange = onThemeModeChange,
+                    onAddTopic = {
+                        topicToEdit = null
+                        defaultSubjectForNew = Subject.Maths
+                        showSheet = true
+                    },
+                    onMarkDone = { revId -> viewModel.markDone(revId) },
+                    onNavigateToTopics = { selectedTab = 3 },
+                    onExportBackup = { exportLauncher.launch("studyplan_backup.json") },
+                    onImportBackup = { importLauncher.launch(arrayOf("application/json", "*/*")) },
+                    onEnableBackgroundAlerts = { openBatteryOptimizationSettings() }
+                )
+                1 -> ReviseScreen(
+                    topics = topics,
+                    revisions = revisions,
+                    onMarkDone = { revId -> viewModel.markDone(revId) }
+                )
+                2 -> SubjectsScreen(
+                    topics = topics,
+                    revisions = revisions,
+                    selectedSubject = currentSubjectInTab,
+                    onSubjectChange = { currentSubjectInTab = it },
+                    onEditTopic = { topic ->
+                        topicToEdit = topic
+                        showSheet = true
+                    },
+                    onDeleteTopic = { topicId ->
+                        handleDeleteTopic(topicId)
+                    },
+                    onAddTopicForSubject = { subject ->
+                        topicToEdit = null
+                        defaultSubjectForNew = subject
+                        showSheet = true
+                    }
+                )
+                3 -> AllTopicsScreen(
+                    topics = topics,
+                    revisions = revisions,
+                    onEditTopic = { topic ->
+                        topicToEdit = topic
+                        showSheet = true
+                    },
+                    onDeleteTopic = { topicId ->
+                        handleDeleteTopic(topicId)
+                    }
+                )
+            }
         }
 
         if (showSheet) {

@@ -1,6 +1,8 @@
 package com.umairshahab.etea.studyplan.ui
 
 import android.content.Context
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,7 +60,10 @@ import com.umairshahab.etea.studyplan.ui.components.HorizontalMonthCalendar
 import com.umairshahab.etea.studyplan.ui.components.MetricCard
 import com.umairshahab.etea.studyplan.ui.components.RevisionRowItem
 import com.umairshahab.etea.studyplan.ui.components.SettingsSheet
+import com.umairshahab.etea.studyplan.ui.components.StaggeredCardEntrance
 import com.umairshahab.etea.studyplan.ui.components.TopicRowItem
+import com.umairshahab.etea.studyplan.ui.components.formatChapterSubtitle
+import com.umairshahab.etea.studyplan.ui.theme.Motion
 import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
 import com.umairshahab.etea.studyplan.ui.theme.ThemeMode
@@ -157,24 +163,36 @@ fun HomeScreen(
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                MetricCard(
-                    label = "Topics",
-                    count = topics.size,
-                    contentColor = if (glassColors.isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
+                StaggeredCardEntrance(
+                    index = 0,
                     modifier = Modifier.weight(1f)
-                )
-                MetricCard(
-                    label = "Today",
-                    count = dueTodayCount,
-                    contentColor = if (glassColors.isDark) Color(0xFF4ADE80) else Color(0xFF16A34A),
+                ) {
+                    MetricCard(
+                        label = "Topics",
+                        count = topics.size,
+                        contentColor = if (glassColors.isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
+                    )
+                }
+                StaggeredCardEntrance(
+                    index = 1,
                     modifier = Modifier.weight(1f)
-                )
-                MetricCard(
-                    label = "Missed",
-                    count = missedCount,
-                    contentColor = if (glassColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
+                ) {
+                    MetricCard(
+                        label = "Today",
+                        count = dueTodayCount,
+                        contentColor = if (glassColors.isDark) Color(0xFF4ADE80) else Color(0xFF16A34A)
+                    )
+                }
+                StaggeredCardEntrance(
+                    index = 2,
                     modifier = Modifier.weight(1f)
-                )
+                ) {
+                    MetricCard(
+                        label = "Missed",
+                        count = missedCount,
+                        contentColor = if (glassColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626)
+                    )
+                }
             }
         }
 
@@ -184,7 +202,6 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -192,10 +209,6 @@ fun HomeScreen(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
-                )
-                GradientPillButton(
-                    text = "+ Add Topic",
-                    onClick = onAddTopic
                 )
             }
         }
@@ -362,85 +375,86 @@ fun HomeScreen(
                     .minByOrNull { it.dueAt }
                 val nextUpTopic = nextUpRevision?.let { rev -> topics.find { it.id == rev.topicId } }
 
-                Card(
+                StaggeredCardEntrance(
+                    index = 3,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    border = StudyPlanThemeDefaults.glassColors.cardBorder,
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
-                    )
+                        .padding(horizontal = 16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        border = StudyPlanThemeDefaults.glassColors.cardBorder,
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
+                        )
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
                         ) {
-                            Text(
-                                text = "Next up",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "View all",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .clickable(onClick = onNavigateToTopics)
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        if (nextUpRevision != null && nextUpTopic != null) {
-                            Text(
-                                text = nextUpTopic.title,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            val subtitle = if (!nextUpTopic.chapter.isNullOrBlank()) {
-                                "${nextUpTopic.chapter} • ${nextUpTopic.subject}"
-                            } else {
-                                nextUpTopic.subject
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Next up",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "View all",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable(onClick = onNavigateToTopics)
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
                             }
-                            Text(
-                                text = subtitle,
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Due: ${RevisionScheduler.format(nextUpRevision.dueAt)}",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Text(
-                                text = "No upcoming revisions",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "All scheduled revisions are completed.",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            if (nextUpRevision != null && nextUpTopic != null) {
+                                Text(
+                                    text = nextUpTopic.title,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                val subtitle = formatChapterSubtitle(nextUpTopic.chapter, nextUpTopic.subject)
+                                Text(
+                                    text = subtitle,
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Due: ${RevisionScheduler.format(nextUpRevision.dueAt)}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                Text(
+                                    text = "No upcoming revisions",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "All scheduled revisions are completed.",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                )
+                            }
                         }
                     }
                 }
@@ -464,6 +478,7 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ReviseScreen(
     topics: List<TopicEntity>,
@@ -545,15 +560,23 @@ fun ReviseScreen(
                     color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
                 )
             }
-            items(dueToday, key = { it.id }) { rev ->
+            itemsIndexed(dueToday, key = { _, it -> it.id }) { index, rev ->
                 val topic = topicMap[rev.topicId]
-                RevisionRowItem(
-                    topicTitle = topic?.title ?: "Topic #${rev.topicId}",
-                    subject = topic?.subject ?: "",
-                    formattedDue = RevisionScheduler.format(rev.dueAt),
-                    isMissed = false,
-                    onDone = { onMarkDone(rev.id) }
-                )
+                Box(
+                    modifier = Modifier.animateItemPlacement(
+                        animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                    )
+                ) {
+                    StaggeredCardEntrance(index = index) {
+                        RevisionRowItem(
+                            topicTitle = topic?.title ?: "Topic #${rev.topicId}",
+                            subject = topic?.subject ?: "",
+                            formattedDue = RevisionScheduler.format(rev.dueAt),
+                            isMissed = false,
+                            onDone = { onMarkDone(rev.id) }
+                        )
+                    }
+                }
             }
         }
 
@@ -567,15 +590,23 @@ fun ReviseScreen(
                     color = if (isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
                 )
             }
-            items(missed, key = { it.id }) { rev ->
+            itemsIndexed(missed, key = { _, it -> it.id }) { index, rev ->
                 val topic = topicMap[rev.topicId]
-                RevisionRowItem(
-                    topicTitle = topic?.title ?: "Topic #${rev.topicId}",
-                    subject = topic?.subject ?: "",
-                    formattedDue = RevisionScheduler.format(rev.dueAt),
-                    isMissed = true,
-                    onDone = { onMarkDone(rev.id) }
-                )
+                Box(
+                    modifier = Modifier.animateItemPlacement(
+                        animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                    )
+                ) {
+                    StaggeredCardEntrance(index = index) {
+                        RevisionRowItem(
+                            topicTitle = topic?.title ?: "Topic #${rev.topicId}",
+                            subject = topic?.subject ?: "",
+                            formattedDue = RevisionScheduler.format(rev.dueAt),
+                            isMissed = true,
+                            onDone = { onMarkDone(rev.id) }
+                        )
+                    }
+                }
             }
         }
 
@@ -589,15 +620,23 @@ fun ReviseScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
-            items(upcoming, key = { it.id }) { rev ->
+            itemsIndexed(upcoming, key = { _, it -> it.id }) { index, rev ->
                 val topic = topicMap[rev.topicId]
-                RevisionRowItem(
-                    topicTitle = topic?.title ?: "Topic #${rev.topicId}",
-                    subject = topic?.subject ?: "",
-                    formattedDue = RevisionScheduler.format(rev.dueAt),
-                    isMissed = false,
-                    onDone = { onMarkDone(rev.id) }
-                )
+                Box(
+                    modifier = Modifier.animateItemPlacement(
+                        animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                    )
+                ) {
+                    StaggeredCardEntrance(index = index) {
+                        RevisionRowItem(
+                            topicTitle = topic?.title ?: "Topic #${rev.topicId}",
+                            subject = topic?.subject ?: "",
+                            formattedDue = RevisionScheduler.format(rev.dueAt),
+                            isMissed = false,
+                            onDone = { onMarkDone(rev.id) }
+                        )
+                    }
+                }
             }
         }
 
@@ -607,16 +646,18 @@ fun ReviseScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SubjectsScreen(
     topics: List<TopicEntity>,
     revisions: List<RevisionEntity>,
+    selectedSubject: Subject = Subject.Maths,
+    onSubjectChange: (Subject) -> Unit = {},
     onEditTopic: (TopicEntity) -> Unit,
     onDeleteTopic: (Long) -> Unit,
     onAddTopicForSubject: (Subject) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedSubject by remember { mutableStateOf(Subject.Maths) }
     val now = System.currentTimeMillis()
 
     val filteredTopics = remember(topics, selectedSubject) {
@@ -633,7 +674,6 @@ fun SubjectsScreen(
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
@@ -649,10 +689,6 @@ fun SubjectsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                 }
-                GradientPillButton(
-                    text = "+ Add",
-                    onClick = { onAddTopicForSubject(selectedSubject) }
-                )
             }
         }
 
@@ -668,7 +704,7 @@ fun SubjectsScreen(
                     GradientPillChip(
                         text = subj.displayName,
                         selected = subj == selectedSubject,
-                        onClick = { selectedSubject = subj }
+                        onClick = { onSubjectChange(subj) }
                     )
                 }
             }
@@ -676,35 +712,45 @@ fun SubjectsScreen(
 
         if (filteredTopics.isEmpty()) {
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    EmptyStateView(
-                        iconRes = R.drawable.ic_empty_book,
-                        title = "No ${selectedSubject.displayName} topics",
-                        message = "Add a topic to begin spaced repetition for this subject."
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    GradientPillButton(
-                        text = "Add your first ${selectedSubject.displayName} topic",
-                        onClick = { onAddTopicForSubject(selectedSubject) }
-                    )
+                StaggeredCardEntrance(index = 0) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        EmptyStateView(
+                            iconRes = R.drawable.ic_empty_book,
+                            title = "No ${selectedSubject.displayName} topics",
+                            message = "Add a topic to begin spaced repetition for this subject."
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        GradientPillButton(
+                            text = "Add your first ${selectedSubject.displayName} topic",
+                            onClick = { onAddTopicForSubject(selectedSubject) }
+                        )
+                    }
                 }
             }
         } else {
-            items(filteredTopics, key = { it.id }) { topic ->
+            itemsIndexed(filteredTopics, key = { _, topic -> topic.id }) { index, topic ->
                 val nextRev = revisions.firstOrNull { it.topicId == topic.id && it.status == "SCHEDULED" && it.dueAt >= now }
                 val nextDueFormatted = nextRev?.let { RevisionScheduler.format(it.dueAt) }
-                TopicRowItem(
-                    topic = topic,
-                    nextDueFormatted = nextDueFormatted,
-                    onEdit = { onEditTopic(topic) },
-                    onDelete = { onDeleteTopic(topic.id) }
-                )
+                Box(
+                    modifier = Modifier.animateItemPlacement(
+                        animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                    )
+                ) {
+                    StaggeredCardEntrance(index = index) {
+                        TopicRowItem(
+                            topic = topic,
+                            nextDueFormatted = nextDueFormatted,
+                            onEdit = { onEditTopic(topic) },
+                            onDelete = { onDeleteTopic(topic.id) }
+                        )
+                    }
+                }
             }
         }
 
@@ -714,6 +760,7 @@ fun SubjectsScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AllTopicsScreen(
     topics: List<TopicEntity>,
@@ -825,15 +872,23 @@ fun AllTopicsScreen(
                 )
             }
         } else {
-            items(filteredTopics, key = { it.id }) { topic ->
+            itemsIndexed(filteredTopics, key = { _, topic -> topic.id }) { index, topic ->
                 val nextRev = revisions.firstOrNull { it.topicId == topic.id && it.status == "SCHEDULED" && it.dueAt >= now }
                 val nextDueFormatted = nextRev?.let { RevisionScheduler.format(it.dueAt) }
-                TopicRowItem(
-                    topic = topic,
-                    nextDueFormatted = nextDueFormatted,
-                    onEdit = { onEditTopic(topic) },
-                    onDelete = { onDeleteTopic(topic.id) }
-                )
+                Box(
+                    modifier = Modifier.animateItemPlacement(
+                        animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                    )
+                ) {
+                    StaggeredCardEntrance(index = index) {
+                        TopicRowItem(
+                            topic = topic,
+                            nextDueFormatted = nextDueFormatted,
+                            onEdit = { onEditTopic(topic) },
+                            onDelete = { onDeleteTopic(topic.id) }
+                        )
+                    }
+                }
             }
         }
 

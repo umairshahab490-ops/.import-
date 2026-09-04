@@ -1,5 +1,14 @@
 package com.umairshahab.etea.studyplan.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,11 +36,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -41,8 +52,55 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.umairshahab.etea.studyplan.R
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
+import com.umairshahab.etea.studyplan.ui.theme.Motion
 import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
+
+fun formatChapterSubtitle(chapter: String?, subject: String): String {
+    if (chapter.isNullOrBlank()) return subject
+    val trimmed = chapter.trim()
+    val chapterText = if (trimmed.startsWith("Chapter", ignoreCase = true)) {
+        trimmed
+    } else {
+        "Chapter $trimmed"
+    }
+    return "$chapterText • $subject"
+}
+
+@Composable
+fun StaggeredCardEntrance(
+    index: Int,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val visibleState = remember {
+        MutableTransitionState(false).apply { targetState = true }
+    }
+    val density = LocalDensity.current
+    val slideOffset = remember(density) { with(density) { 8.dp.roundToPx() } }
+    val delayMs = (index.coerceAtMost(6) * 40)
+
+    AnimatedVisibility(
+        visibleState = visibleState,
+        enter = fadeIn(
+            animationSpec = tween(
+                durationMillis = Motion.MEDIUM,
+                delayMillis = delayMs,
+                easing = Motion.DECELERATE
+            )
+        ) + slideInVertically(
+            animationSpec = tween(
+                durationMillis = Motion.MEDIUM,
+                delayMillis = delayMs,
+                easing = Motion.DECELERATE
+            ),
+            initialOffsetY = { slideOffset }
+        ),
+        modifier = modifier
+    ) {
+        content()
+    }
+}
 
 @Composable
 fun MetricCard(
@@ -68,12 +126,48 @@ fun MetricCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = count.toString(),
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = contentColor
-            )
+            AnimatedContent(
+                targetState = count,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        (slideInVertically(
+                            animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD),
+                            initialOffsetY = { -it }
+                        ) + fadeIn(
+                            animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                        )).togetherWith(
+                            slideOutVertically(
+                                animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD),
+                                targetOffsetY = { it }
+                            ) + fadeOut(
+                                animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                            )
+                        )
+                    } else {
+                        (slideInVertically(
+                            animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD),
+                            initialOffsetY = { it }
+                        ) + fadeIn(
+                            animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                        )).togetherWith(
+                            slideOutVertically(
+                                animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD),
+                                targetOffsetY = { -it }
+                            ) + fadeOut(
+                                animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                            )
+                        )
+                    }
+                },
+                label = "metric_count_animation"
+            ) { targetCount ->
+                Text(
+                    text = targetCount.toString(),
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor
+                )
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = label,
@@ -170,7 +264,7 @@ fun TopicRowItem(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    val subtitle = if (!topic.chapter.isNullOrBlank()) "${topic.chapter} • ${topic.subject}" else topic.subject
+                    val subtitle = formatChapterSubtitle(topic.chapter, topic.subject)
                     val duePart = nextDueFormatted?.let { "Next due: $it" } ?: "All revisions completed"
                     Text(
                         text = "$subtitle\n$duePart",
@@ -380,34 +474,57 @@ fun EmptyStateView(
     message: String,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    val visibleState = remember {
+        MutableTransitionState(false).apply { targetState = true }
+    }
+    val density = LocalDensity.current
+    val slideOffset = remember(density) { with(density) { 8.dp.roundToPx() } }
+
+    AnimatedVisibility(
+        visibleState = visibleState,
+        enter = fadeIn(
+            animationSpec = tween(
+                durationMillis = Motion.MEDIUM,
+                easing = Motion.DECELERATE
+            )
+        ) + slideInVertically(
+            animationSpec = tween(
+                durationMillis = Motion.MEDIUM,
+                easing = Motion.DECELERATE
+            ),
+            initialOffsetY = { slideOffset }
+        ),
         modifier = modifier
-            .fillMaxWidth()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            painter = painterResource(id = iconRes),
-            contentDescription = title,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(48.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = title,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = message,
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-            lineHeight = 18.sp,
-            textAlign = TextAlign.Center
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                painter = painterResource(id = iconRes),
+                contentDescription = title,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = message,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                lineHeight = 18.sp,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }

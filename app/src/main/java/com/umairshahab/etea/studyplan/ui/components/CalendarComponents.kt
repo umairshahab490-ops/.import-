@@ -27,6 +27,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -162,20 +163,20 @@ fun HorizontalMonthCalendar(
             }
         }
 
-        // LEVEL 2: Selected Month Detail
+        val currentExpanded = expandedMonth
         AnimatedVisibility(
-            visible = expandedMonth != null,
+            visible = currentExpanded != null,
             enter = expandVertically(),
             exit = shrinkVertically()
         ) {
-            expandedMonth?.let { month ->
+            if (currentExpanded != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
                     SelectedMonthDetailCard(
-                        month = month,
+                        month = currentExpanded,
                         revisionsByDate = revisionsByDate,
                         today = today,
                         now = now,
@@ -186,10 +187,11 @@ fun HorizontalMonthCalendar(
         }
     }
 
-    selectedDateForSheet?.let { date ->
-        val currentDayRevisions = revisionsByDate[date] ?: emptyList()
+    val dateForSheet = selectedDateForSheet
+    if (dateForSheet != null) {
+        val currentDayRevisions = revisionsByDate[dateForSheet] ?: emptyList()
         DayRevisionsSheet(
-            date = date,
+            date = dateForSheet,
             revisions = currentDayRevisions,
             topicMap = topicMap,
             onDismiss = { selectedDateForSheet = null },
@@ -396,7 +398,7 @@ fun SelectedMonthDetailCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                listOf("M", "T", "W", "T", "F", "S", "S").forEach { label ->
+                for (label in listOf("M", "T", "W", "T", "F", "S", "S")) {
                     Box(
                         modifier = Modifier.weight(1f),
                         contentAlignment = Alignment.Center
@@ -583,7 +585,7 @@ fun DayRevisionsSheet(
                 )
             } else {
                 val now = System.currentTimeMillis()
-                revisions.forEach { rev ->
+                for (rev in revisions) {
                     val topic = topicMap[rev.topicId]
                     RevisionRowItem(
                         topicTitle = topic?.title ?: "Topic #${rev.topicId}",

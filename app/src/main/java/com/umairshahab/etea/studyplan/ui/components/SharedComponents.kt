@@ -59,8 +59,9 @@ import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
 fun formatChapterSubtitle(chapter: String?, subject: String): String {
     if (chapter.isNullOrBlank()) return subject
     val trimmed = chapter.trim()
-    val chapterText = if (trimmed.startsWith("Chapter", ignoreCase = true)) {
-        trimmed
+    val chapterText = if (trimmed.startsWith("chapter", ignoreCase = true)) {
+        val remainder = trimmed.substring(7).trim()
+        if (remainder.isNotEmpty()) "Chapter $remainder" else "Chapter"
     } else {
         "Chapter $trimmed"
     }
@@ -108,16 +109,21 @@ fun MetricCard(
     count: Int,
     containerColor: Color = StudyPlanThemeDefaults.glassColors.cardSurface,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
-    Card(
-        modifier = modifier,
+    Surface(
+        modifier = modifier
+            .then(
+                if (onClick != null) {
+                    Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable(onClick = onClick)
+                } else Modifier
+            ),
         shape = RoundedCornerShape(16.dp),
         border = StudyPlanThemeDefaults.glassColors.cardBorder,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
-        )
+        color = containerColor
     ) {
         Column(
             modifier = Modifier
@@ -181,14 +187,11 @@ fun MetricCard(
 
 @Composable
 fun PlaceholderCalendarCard(modifier: Modifier = Modifier) {
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         border = StudyPlanThemeDefaults.glassColors.cardBorder,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
-        )
+        color = StudyPlanThemeDefaults.glassColors.cardSurface
     ) {
         Row(
             modifier = Modifier
@@ -237,14 +240,11 @@ fun TopicRowItem(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         border = StudyPlanThemeDefaults.glassColors.cardBorder,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
-        )
+        color = StudyPlanThemeDefaults.glassColors.cardSurface
     ) {
         Column(
             modifier = Modifier
@@ -284,19 +284,23 @@ fun TopicRowItem(
                 OutlinedButton(
                     onClick = onEdit,
                     shape = CircleShape,
-                    modifier = Modifier.defaultMinSize(minWidth = 64.dp, minHeight = 44.dp)
+                    modifier = Modifier
+                        .semantics { contentDescription = "Edit topic" }
+                        .defaultMinSize(minWidth = 64.dp, minHeight = 48.dp)
                 ) {
                     Text("Edit", fontSize = 13.sp)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Button(
+                OutlinedButton(
                     onClick = onDelete,
                     shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
                     ),
-                    modifier = Modifier.defaultMinSize(minWidth = 64.dp, minHeight = 44.dp)
+                    modifier = Modifier
+                        .semantics { contentDescription = "Delete topic" }
+                        .defaultMinSize(minWidth = 64.dp, minHeight = 48.dp)
                 ) {
                     Text("Delete", fontSize = 13.sp)
                 }
@@ -312,7 +316,8 @@ fun RevisionRowItem(
     formattedDue: String,
     isMissed: Boolean,
     onDone: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    chapter: String? = null
 ) {
     val isDark = StudyPlanThemeDefaults.glassColors.isDark
     val containerColor = if (isMissed) {
@@ -326,12 +331,11 @@ fun RevisionRowItem(
         if (isDark) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.30f)
     }
 
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor)
+        color = containerColor
     ) {
         Row(
             modifier = Modifier
@@ -341,21 +345,20 @@ fun RevisionRowItem(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = topicTitle,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "• $subject",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                Text(
+                    text = topicTitle,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                val subtitle = formatChapterSubtitle(chapter, subject)
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (isMissed) {
@@ -394,7 +397,9 @@ fun RevisionRowItem(
                     containerColor = if (isMissed) Color(0xFFDC2626) else Color(0xFF16A34A),
                     contentColor = Color.White
                 ),
-                modifier = Modifier.defaultMinSize(minWidth = 68.dp, minHeight = 44.dp)
+                modifier = Modifier
+                    .semantics { contentDescription = "Mark revision done" }
+                    .defaultMinSize(minWidth = 68.dp, minHeight = 48.dp)
             ) {
                 Text("Done", fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }

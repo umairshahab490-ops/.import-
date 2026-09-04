@@ -35,6 +35,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.umairshahab.etea.studyplan.BuildConfig
 import com.umairshahab.etea.studyplan.R
 import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
@@ -191,13 +192,13 @@ fun SettingsSheet(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "About Study Plan v1.8.0",
+                        text = "About Study Plan",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Version 1.8.0 (Build 17)",
+                        text = "Version ${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.primary

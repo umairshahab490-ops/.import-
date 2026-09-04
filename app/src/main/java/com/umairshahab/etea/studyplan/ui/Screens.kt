@@ -77,6 +77,7 @@ fun HomeScreen(
     onAddTopic: () -> Unit,
     onMarkDone: (Long) -> Unit,
     onNavigateToTopics: () -> Unit,
+    onNavigateToRevise: () -> Unit = {},
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     onEnableBackgroundAlerts: () -> Unit,
@@ -170,7 +171,8 @@ fun HomeScreen(
                     MetricCard(
                         label = "Topics",
                         count = topics.size,
-                        contentColor = if (glassColors.isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
+                        contentColor = if (glassColors.isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
+                        onClick = onNavigateToTopics
                     )
                 }
                 StaggeredCardEntrance(
@@ -180,7 +182,8 @@ fun HomeScreen(
                     MetricCard(
                         label = "Today",
                         count = dueTodayCount,
-                        contentColor = if (glassColors.isDark) Color(0xFF4ADE80) else Color(0xFF16A34A)
+                        contentColor = if (glassColors.isDark) Color(0xFF4ADE80) else Color(0xFF16A34A),
+                        onClick = onNavigateToRevise
                     )
                 }
                 StaggeredCardEntrance(
@@ -190,7 +193,8 @@ fun HomeScreen(
                     MetricCard(
                         label = "Missed",
                         count = missedCount,
-                        contentColor = if (glassColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626)
+                        contentColor = if (glassColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
+                        onClick = onNavigateToRevise
                     )
                 }
             }
@@ -236,16 +240,13 @@ fun HomeScreen(
         if (topics.isEmpty()) {
             if (!onboardingDismissed) {
                 item {
-                    Card(
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
                         shape = RoundedCornerShape(20.dp),
                         border = StudyPlanThemeDefaults.glassColors.cardBorder,
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
-                        )
+                        color = StudyPlanThemeDefaults.glassColors.cardSurface
                     ) {
                         Column(
                             modifier = Modifier
@@ -381,14 +382,11 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
-                    Card(
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
                         border = StudyPlanThemeDefaults.glassColors.cardBorder,
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
-                        )
+                        color = StudyPlanThemeDefaults.glassColors.cardSurface
                     ) {
                         Column(
                             modifier = Modifier
@@ -493,19 +491,19 @@ fun ReviseScreen(
     val dueToday = remember(revisions, now) {
         revisions.filter {
             it.status == "SCHEDULED" && RevisionScheduler.isSameDay(it.dueAt, now) && it.dueAt >= now
-        }
+        }.sortedBy { it.dueAt }
     }
 
     val missed = remember(revisions, now) {
         revisions.filter {
             it.status == "SCHEDULED" && it.dueAt < now
-        }
+        }.sortedBy { it.dueAt }
     }
 
     val upcoming = remember(revisions, now) {
         revisions.filter {
             it.status == "SCHEDULED" && it.dueAt >= now && !RevisionScheduler.isSameDay(it.dueAt, now)
-        }.take(10)
+        }.sortedBy { it.dueAt }.take(10)
     }
 
     LazyColumn(
@@ -573,7 +571,8 @@ fun ReviseScreen(
                             subject = topic?.subject ?: "",
                             formattedDue = RevisionScheduler.format(rev.dueAt),
                             isMissed = false,
-                            onDone = { onMarkDone(rev.id) }
+                            onDone = { onMarkDone(rev.id) },
+                            chapter = topic?.chapter
                         )
                     }
                 }
@@ -603,7 +602,8 @@ fun ReviseScreen(
                             subject = topic?.subject ?: "",
                             formattedDue = RevisionScheduler.format(rev.dueAt),
                             isMissed = true,
-                            onDone = { onMarkDone(rev.id) }
+                            onDone = { onMarkDone(rev.id) },
+                            chapter = topic?.chapter
                         )
                     }
                 }
@@ -633,7 +633,8 @@ fun ReviseScreen(
                             subject = topic?.subject ?: "",
                             formattedDue = RevisionScheduler.format(rev.dueAt),
                             isMissed = false,
-                            onDone = { onMarkDone(rev.id) }
+                            onDone = { onMarkDone(rev.id) },
+                            chapter = topic?.chapter
                         )
                     }
                 }
@@ -779,7 +780,8 @@ fun AllTopicsScreen(
             val query = searchQuery.trim()
             topics.filter {
                 it.title.contains(query, ignoreCase = true) ||
-                    (it.chapter?.contains(query, ignoreCase = true) == true)
+                    (it.chapter?.contains(query, ignoreCase = true) == true) ||
+                    it.subject.contains(query, ignoreCase = true)
             }
         }
     }

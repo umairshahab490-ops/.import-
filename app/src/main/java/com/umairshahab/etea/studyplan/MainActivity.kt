@@ -63,6 +63,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -352,49 +353,45 @@ fun StudyPlanScreen(
         containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            val isFabVisible = selectedTab != 1
-            AnimatedVisibility(
-                visible = isFabVisible,
-                enter = scaleIn(
-                    animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
-                ) + fadeIn(
-                    animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
-                ),
-                exit = scaleOut(
-                    animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
-                ) + fadeOut(
-                    animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
-                )
-            ) {
-                val interactionSource = remember { MutableInteractionSource() }
-                val isPressed by interactionSource.collectIsPressedAsState()
-                val elevation = if (isPressed) 8.dp else 4.dp
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+            val elevation = if (isPressed) 8.dp else 4.dp
+            val fabRotation by animateFloatAsState(
+                targetValue = if (showSheet) 45f else 0f,
+                animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD),
+                label = "fab_rotation"
+            )
 
-                FloatingActionButton(
-                    onClick = {
-                        topicToEdit = null
-                        defaultSubjectForNew = if (selectedTab == 2) currentSubjectInTab else Subject.Maths
-                        showSheet = true
-                    },
-                    shape = CircleShape,
-                    containerColor = Color.Transparent,
-                    elevation = FloatingActionButtonDefaults.elevation(
-                        defaultElevation = elevation,
-                        pressedElevation = elevation
-                    ),
-                    interactionSource = interactionSource,
+            FloatingActionButton(
+                onClick = {
+                    topicToEdit = null
+                    defaultSubjectForNew = if (selectedTab == 2) currentSubjectInTab else Subject.Maths
+                    showSheet = true
+                },
+                shape = CircleShape,
+                containerColor = Color.Transparent,
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 0.dp,
+                    focusedElevation = 0.dp,
+                    hoveredElevation = 0.dp
+                ),
+                interactionSource = interactionSource,
+                modifier = Modifier
+                    .semantics { contentDescription = "Add topic" }
+                    .size(56.dp)
+                    .shadow(elevation = elevation, shape = CircleShape)
+                    .clip(CircleShape)
+                    .background(brush = PrimaryGradientBrush)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_add),
+                    contentDescription = "Add topic",
+                    tint = Color.White,
                     modifier = Modifier
-                        .semantics { contentDescription = "Add Topic" }
-                        .shadow(elevation = elevation, shape = CircleShape)
-                        .background(brush = PrimaryGradientBrush, shape = CircleShape)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_add),
-                        contentDescription = "Add Topic",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                        .size(24.dp)
+                        .graphicsLayer { rotationZ = fabRotation }
+                )
             }
         },
         bottomBar = {
@@ -499,6 +496,7 @@ fun StudyPlanScreen(
                     },
                     onMarkDone = { revId -> viewModel.markDone(revId) },
                     onNavigateToTopics = { selectedTab = 3 },
+                    onNavigateToRevise = { selectedTab = 1 },
                     onExportBackup = { exportLauncher.launch("studyplan_backup.json") },
                     onImportBackup = { importLauncher.launch(arrayOf("application/json", "*/*")) },
                     onEnableBackgroundAlerts = { openBatteryOptimizationSettings() }

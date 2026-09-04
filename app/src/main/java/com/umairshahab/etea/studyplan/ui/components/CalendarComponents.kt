@@ -228,17 +228,14 @@ fun CompactMonthCard(
         StudyPlanThemeDefaults.glassColors.cardBorder
     }
 
-    Card(
+    Surface(
         modifier = modifier
             .width(cardWidth)
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         border = cardBorder,
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
-        )
+        color = StudyPlanThemeDefaults.glassColors.cardSurface
     ) {
         Column(
             modifier = Modifier
@@ -371,14 +368,11 @@ fun SelectedMonthDetailCard(
     val totalSlots = startOffset + daysInMonth
     val numWeeks = (totalSlots + 6) / 7
 
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         border = StudyPlanThemeDefaults.glassColors.cardBorder,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
-        )
+        color = StudyPlanThemeDefaults.glassColors.cardSurface
     ) {
         Column(
             modifier = Modifier
@@ -596,7 +590,8 @@ fun DayRevisionsSheet(
                         subject = topic?.subject ?: "",
                         formattedDue = RevisionScheduler.format(rev.dueAt),
                         isMissed = rev.status == "SCHEDULED" && rev.dueAt < now,
-                        onDone = { onMarkDone(rev.id) }
+                        onDone = { onMarkDone(rev.id) },
+                        chapter = topic?.chapter
                     )
                 }
             }

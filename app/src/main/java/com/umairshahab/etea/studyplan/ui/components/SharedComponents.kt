@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.umairshahab.etea.studyplan.R
+import com.umairshahab.etea.studyplan.data.local.RevisionEntity
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
 import com.umairshahab.etea.studyplan.ui.theme.Motion
 import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
@@ -233,12 +234,36 @@ fun PlaceholderCalendarCard(modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun RevisionBadge(
+    intervalIndex: Int,
+    intervalDays: Int,
+    modifier: Modifier = Modifier
+) {
+    val isDark = StudyPlanThemeDefaults.glassColors.isDark
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = if (isDark) Color(0xFF1E293B).copy(alpha = 0.8f) else Color(0xFFEFF6FF),
+        border = BorderStroke(1.dp, if (isDark) Color(0xFF3B82F6).copy(alpha = 0.4f) else Color(0xFFBFDBFE)),
+        modifier = modifier
+    ) {
+        Text(
+            text = "Rev ${intervalIndex + 1} · +${intervalDays}d",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1D4ED8),
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
 fun TopicRowItem(
     topic: TopicEntity,
     nextDueFormatted: String?,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    nextRevision: RevisionEntity? = null
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -265,13 +290,35 @@ fun TopicRowItem(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     val subtitle = formatChapterSubtitle(topic.chapter, topic.subject)
-                    val duePart = nextDueFormatted?.let { "Next due: $it" } ?: "All revisions completed"
                     Text(
-                        text = "$subtitle\n$duePart",
+                        text = subtitle,
                         fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        lineHeight = 18.sp
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    if (nextRevision != null && nextDueFormatted != null) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Next due: $nextDueFormatted",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            )
+                            RevisionBadge(
+                                intervalIndex = nextRevision.intervalIndex,
+                                intervalDays = nextRevision.intervalDays
+                            )
+                        }
+                    } else {
+                        val duePart = nextDueFormatted?.let { "Next due: $it" } ?: "All revisions completed"
+                        Text(
+                            text = duePart,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        )
+                    }
                 }
             }
 
@@ -317,7 +364,11 @@ fun RevisionRowItem(
     isMissed: Boolean,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
-    chapter: String? = null
+    chapter: String? = null,
+    intervalIndex: Int? = null,
+    intervalDays: Int? = null,
+    statusText: String? = null,
+    buttonText: String = "Done"
 ) {
     val isDark = StudyPlanThemeDefaults.glassColors.isDark
     val containerColor = if (isMissed) {
@@ -360,18 +411,40 @@ fun RevisionRowItem(
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     if (isMissed) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
-                            color = if (isDark) Color(0xFF991B1B) else Color(0xFFFEE2E2),
-                            modifier = Modifier.padding(end = 6.dp)
+                            color = if (isDark) Color(0xFF991B1B) else Color(0xFFFEE2E2)
                         ) {
                             Text(
                                 text = "MISSED",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isDark) Color(0xFFFEE2E2) else Color(0xFFDC2626),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    if (intervalIndex != null && intervalDays != null) {
+                        RevisionBadge(
+                            intervalIndex = intervalIndex,
+                            intervalDays = intervalDays
+                        )
+                    }
+                    if (statusText != null && !isMissed) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.5f) else Color(0xFFDBEAFE)
+                        ) {
+                            Text(
+                                text = statusText,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1E40AF),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
@@ -401,7 +474,7 @@ fun RevisionRowItem(
                     .semantics { contentDescription = "Mark revision done" }
                     .defaultMinSize(minWidth = 68.dp, minHeight = 48.dp)
             ) {
-                Text("Done", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(buttonText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -593,7 +593,11 @@ fun DayRevisionsSheet(
                         formattedDue = RevisionScheduler.format(rev.dueAt),
                         isMissed = rev.status == "SCHEDULED" && rev.dueAt < now,
                         onDone = { onMarkDone(rev.id) },
-                        chapter = topic?.chapter
+                        chapter = topic?.chapter,
+                        intervalIndex = rev.intervalIndex,
+                        intervalDays = rev.intervalDays,
+                        statusText = rev.status,
+                        buttonText = "Mark Done"
                     )
                 }
             }

@@ -59,6 +59,7 @@ import com.umairshahab.etea.studyplan.ui.components.GradientPillButton
 import com.umairshahab.etea.studyplan.ui.components.GradientPillChip
 import com.umairshahab.etea.studyplan.ui.components.HorizontalMonthCalendar
 import com.umairshahab.etea.studyplan.ui.components.MetricCard
+import com.umairshahab.etea.studyplan.ui.components.RevisionBadge
 import com.umairshahab.etea.studyplan.ui.components.RevisionRowItem
 import com.umairshahab.etea.studyplan.ui.components.SettingsSheet
 import com.umairshahab.etea.studyplan.ui.components.StaggeredCardEntrance
@@ -159,61 +160,56 @@ fun HomeScreen(
 
         // Metrics Row
         item {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(horizontal = 16.dp)
             ) {
-                StaggeredCardEntrance(
-                    index = 0,
-                    modifier = Modifier.weight(1f)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    MetricCard(
-                        label = "Topics",
-                        count = topics.size,
-                        contentColor = if (glassColors.isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
-                        onClick = onNavigateToTopics
-                    )
+                    StaggeredCardEntrance(
+                        index = 0,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        MetricCard(
+                            label = "Topics",
+                            count = topics.size,
+                            contentColor = if (glassColors.isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
+                            onClick = onNavigateToTopics
+                        )
+                    }
+                    StaggeredCardEntrance(
+                        index = 1,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        MetricCard(
+                            label = "Today",
+                            count = dueTodayCount,
+                            contentColor = if (glassColors.isDark) Color(0xFF4ADE80) else Color(0xFF16A34A),
+                            onClick = onNavigateToRevise
+                        )
+                    }
+                    StaggeredCardEntrance(
+                        index = 2,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        MetricCard(
+                            label = "Missed",
+                            count = missedCount,
+                            contentColor = if (glassColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
+                            onClick = onNavigateToRevise
+                        )
+                    }
                 }
-                StaggeredCardEntrance(
-                    index = 1,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    MetricCard(
-                        label = "Today",
-                        count = dueTodayCount,
-                        contentColor = if (glassColors.isDark) Color(0xFF4ADE80) else Color(0xFF16A34A),
-                        onClick = onNavigateToRevise
-                    )
-                }
-                StaggeredCardEntrance(
-                    index = 2,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    MetricCard(
-                        label = "Missed",
-                        count = missedCount,
-                        contentColor = if (glassColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
-                        onClick = onNavigateToRevise
-                    )
-                }
-            }
-        }
-
-        // Action & Counter
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+                Spacer(modifier = Modifier.height(6.dp))
+                val noun = if (topics.size == 1) "topic" else "topics"
                 Text(
-                    text = "Total ${topics.size}",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+                    text = "Total ${topics.size} $noun",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    modifier = Modifier.padding(start = 4.dp)
                 )
             }
         }
@@ -433,13 +429,22 @@ fun HomeScreen(
                                     fontSize = 13.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Due: ${RevisionScheduler.format(nextUpRevision.dueAt)}",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    RevisionBadge(
+                                        intervalIndex = nextUpRevision.intervalIndex,
+                                        intervalDays = nextUpRevision.intervalDays
+                                    )
+                                    Text(
+                                        text = "Due: ${RevisionScheduler.format(nextUpRevision.dueAt)}",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             } else {
                                 Text(
                                     text = "No upcoming revisions",
@@ -532,21 +537,29 @@ fun ReviseScreen(
         // Empty state when nothing is due today and nothing missed
         if (dueToday.isEmpty() && missed.isEmpty()) {
             item {
-                val nextScheduled = remember(revisions, now) {
-                    revisions.filter { it.status == "SCHEDULED" && it.dueAt >= now }.minByOrNull { it.dueAt }
-                }
-                val nextTopic = nextScheduled?.let { topicMap[it.topicId] }
-                val nextMessage = if (nextScheduled != null && nextTopic != null) {
-                    "Next: ${RevisionScheduler.format(nextScheduled.dueAt)} – ${nextTopic.title}"
+                if (topics.isEmpty()) {
+                    EmptyStateView(
+                        iconRes = R.drawable.ic_empty_clock,
+                        title = "Nothing due now.",
+                        message = "Add a topic to build your revision ladder."
+                    )
                 } else {
-                    "All scheduled revisions are completed."
-                }
+                    val nextScheduled = remember(revisions, now) {
+                        revisions.filter { it.status == "SCHEDULED" && it.dueAt >= now }.minByOrNull { it.dueAt }
+                    }
+                    val nextTopic = nextScheduled?.let { topicMap[it.topicId] }
+                    val nextMessage = if (nextScheduled != null && nextTopic != null) {
+                        "Next: ${RevisionScheduler.format(nextScheduled.dueAt)} – ${nextTopic.title}"
+                    } else {
+                        "All scheduled revisions are completed."
+                    }
 
-                EmptyStateView(
-                    iconRes = R.drawable.ic_empty_clock,
-                    title = "Nothing due now.",
-                    message = nextMessage
-                )
+                    EmptyStateView(
+                        iconRes = R.drawable.ic_empty_clock,
+                        title = "Nothing due now.",
+                        message = nextMessage
+                    )
+                }
             }
         }
 
@@ -573,7 +586,9 @@ fun ReviseScreen(
                             formattedDue = RevisionScheduler.format(rev.dueAt),
                             isMissed = false,
                             onDone = { onMarkDone(rev.id) },
-                            chapter = topic?.chapter
+                            chapter = topic?.chapter,
+                            intervalIndex = rev.intervalIndex,
+                            intervalDays = rev.intervalDays
                         )
                     }
                 }
@@ -604,7 +619,9 @@ fun ReviseScreen(
                             formattedDue = RevisionScheduler.format(rev.dueAt),
                             isMissed = true,
                             onDone = { onMarkDone(rev.id) },
-                            chapter = topic?.chapter
+                            chapter = topic?.chapter,
+                            intervalIndex = rev.intervalIndex,
+                            intervalDays = rev.intervalDays
                         )
                     }
                 }
@@ -635,7 +652,9 @@ fun ReviseScreen(
                             formattedDue = RevisionScheduler.format(rev.dueAt),
                             isMissed = false,
                             onDone = { onMarkDone(rev.id) },
-                            chapter = topic?.chapter
+                            chapter = topic?.chapter,
+                            intervalIndex = rev.intervalIndex,
+                            intervalDays = rev.intervalDays
                         )
                     }
                 }
@@ -709,6 +728,7 @@ fun SubjectsScreen(
                         onClick = { onSubjectChange(subj) }
                     )
                 }
+                Spacer(modifier = Modifier.width(16.dp))
             }
         }
 
@@ -749,7 +769,8 @@ fun SubjectsScreen(
                             topic = topic,
                             nextDueFormatted = nextDueFormatted,
                             onEdit = { onEditTopic(topic) },
-                            onDelete = { onDeleteTopic(topic.id) }
+                            onDelete = { onDeleteTopic(topic.id) },
+                            nextRevision = nextRev
                         )
                     }
                 }
@@ -888,7 +909,8 @@ fun AllTopicsScreen(
                             topic = topic,
                             nextDueFormatted = nextDueFormatted,
                             onEdit = { onEditTopic(topic) },
-                            onDelete = { onDeleteTopic(topic.id) }
+                            onDelete = { onDeleteTopic(topic.id) },
+                            nextRevision = nextRev
                         )
                     }
                 }

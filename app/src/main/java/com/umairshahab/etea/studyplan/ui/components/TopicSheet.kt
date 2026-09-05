@@ -141,7 +141,7 @@ fun TopicSheet(
                         onClick = { selectedSubject = subj }
                     )
                 }
-                Spacer(modifier = Modifier.width(24.dp))
+                Spacer(modifier = Modifier.width(16.dp))
             }
 
             Spacer(modifier = Modifier.height(14.dp))

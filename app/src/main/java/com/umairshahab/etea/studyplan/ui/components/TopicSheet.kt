@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
@@ -99,6 +101,7 @@ fun TopicSheet(
     val isSaveEnabled = title.isNotBlank() && parsedIntervals.isNotEmpty()
     val scrollState = rememberScrollState()
     val isDark = StudyPlanThemeDefaults.glassColors.isDark
+    var showConfirmDialog by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -251,14 +254,23 @@ fun TopicSheet(
                 text = if (topicToEdit == null) "Save Topic" else "Update Topic",
                 onClick = {
                     if (isSaveEnabled) {
-                        onSave(
-                            selectedSubject.displayName,
-                            title,
-                            chapter,
-                            timePickerState.hour,
-                            timePickerState.minute,
-                            parsedIntervals
+                        val scheduleChanged = topicToEdit != null && (
+                            timePickerState.hour != topicToEdit.revisionHour ||
+                            timePickerState.minute != topicToEdit.revisionMinute ||
+                            parsedIntervals != topicToEdit.intervals
                         )
+                        if (scheduleChanged) {
+                            showConfirmDialog = true
+                        } else {
+                            onSave(
+                                selectedSubject.displayName,
+                                title,
+                                chapter,
+                                timePickerState.hour,
+                                timePickerState.minute,
+                                parsedIntervals
+                            )
+                        }
                     }
                 },
                 enabled = isSaveEnabled,
@@ -269,5 +281,43 @@ fun TopicSheet(
 
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+
+    if (showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = {
+                Text(text = "Regenerate scheduled revisions?")
+            },
+            text = {
+                Text(
+                    text = "Completed and missed history is kept. Unfinished scheduled revisions will be deleted and rebuilt from the original created date at the new time/intervals. Future dates will change. Completed dates will not."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmDialog = false
+                        onSave(
+                            selectedSubject.displayName,
+                            title,
+                            chapter,
+                            timePickerState.hour,
+                            timePickerState.minute,
+                            parsedIntervals
+                        )
+                    }
+                ) {
+                    Text(text = "Regenerate")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showConfirmDialog = false }
+                ) {
+                    Text(text = "Cancel")
+                }
+            }
+        )
     }
 }

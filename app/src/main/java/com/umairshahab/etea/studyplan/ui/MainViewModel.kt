@@ -112,30 +112,36 @@ class MainViewModel(
             )
             topicDao.update(updated)
 
-            // Cancel any scheduled alerts for upcoming revisions
-            val existingRevs = revisionDao.getForTopic(topicId)
-            val app = getApplication<Application>()
-            existingRevs.filter { it.status == "SCHEDULED" }.forEach { rev ->
-                AlertScheduler.cancel(app, rev.id)
-            }
+            val scheduleChanged = existing.revisionHour != revisionHour ||
+                existing.revisionMinute != revisionMinute ||
+                existing.intervals != intervals
 
-            // Keep completed revision history, delete only SCHEDULED revisions
-            revisionDao.deleteScheduledForTopic(topicId)
+            if (scheduleChanged) {
+                // Cancel any scheduled alerts for upcoming revisions
+                val existingRevs = revisionDao.getForTopic(topicId)
+                val app = getApplication<Application>()
+                existingRevs.filter { it.status == "SCHEDULED" }.forEach { rev ->
+                    AlertScheduler.cancel(app, rev.id)
+                }
 
-            val now = System.currentTimeMillis()
-            // Regenerate future revisions from the ORIGINAL createdAt base with the new settings
-            val baseTimestamp = RevisionScheduler.baseTimestamp(existing.createdAt, revisionHour, revisionMinute)
-            val futureRevisions = RevisionScheduler.buildRevisions(topicId, baseTimestamp, intervals, now)
-            if (futureRevisions.isNotEmpty()) {
-                revisionDao.insertAll(futureRevisions)
-                futureRevisions.forEach { rev ->
-                    AlertScheduler.schedule(
-                        context = app,
-                        revisionId = rev.id,
-                        alertAt = rev.alertAt,
-                        topicTitle = updated.title,
-                        subject = updated.subject
-                    )
+                // Keep completed revision history, delete only SCHEDULED revisions
+                revisionDao.deleteScheduledForTopic(topicId)
+
+                val now = System.currentTimeMillis()
+                // Regenerate future revisions from the ORIGINAL createdAt base with the new settings
+                val baseTimestamp = RevisionScheduler.baseTimestamp(existing.createdAt, revisionHour, revisionMinute)
+                val futureRevisions = RevisionScheduler.buildRevisions(topicId, baseTimestamp, intervals, now)
+                if (futureRevisions.isNotEmpty()) {
+                    revisionDao.insertAll(futureRevisions)
+                    futureRevisions.forEach { rev ->
+                        AlertScheduler.schedule(
+                            context = app,
+                            revisionId = rev.id,
+                            alertAt = rev.alertAt,
+                            topicTitle = updated.title,
+                            subject = updated.subject
+                        )
+                    }
                 }
             }
         }

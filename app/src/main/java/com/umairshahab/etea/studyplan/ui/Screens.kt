@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -860,17 +861,31 @@ fun AllTopicsScreen(
 ) {
     val now = System.currentTimeMillis()
     var searchQuery by remember { mutableStateOf("") }
+    var selectedFilter by rememberSaveable { mutableStateOf("All") }
 
-    val filteredTopics = remember(topics, searchQuery) {
-        if (searchQuery.isBlank()) {
-            topics
-        } else {
-            val query = searchQuery.trim()
-            topics.filter {
-                it.title.contains(query, ignoreCase = true) ||
-                    (it.chapter?.contains(query, ignoreCase = true) == true) ||
-                    it.subject.contains(query, ignoreCase = true)
+    val revisionsByTopic = remember(revisions) {
+        revisions.groupBy { it.topicId }
+    }
+
+    val filteredTopics = remember(topics, revisionsByTopic, searchQuery, selectedFilter) {
+        val query = searchQuery.trim()
+        topics.filter { topic ->
+            val matchesSearch = query.isEmpty() ||
+                topic.title.contains(query, ignoreCase = true) ||
+                (topic.chapter?.contains(query, ignoreCase = true) == true) ||
+                topic.subject.contains(query, ignoreCase = true)
+
+            val topicRevs = revisionsByTopic[topic.id] ?: emptyList()
+            val matchesFilter = when (selectedFilter) {
+                "Upcoming" -> topicRevs.any { it.status == "SCHEDULED" }
+                "Missed" -> topicRevs.any { it.status == "MISSED" }
+                "Done" -> topicRevs.any { it.status == "DONE" } &&
+                    topicRevs.none { it.status == "SCHEDULED" } &&
+                    topicRevs.none { it.status == "MISSED" }
+                else -> true // "All"
             }
+
+            matchesSearch && matchesFilter
         }
     }
 
@@ -942,6 +957,24 @@ fun AllTopicsScreen(
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                 )
             )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Filter Chips: All | Upcoming | Missed | Done
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val filters = listOf("All", "Upcoming", "Missed", "Done")
+                filters.forEach { filter ->
+                    GradientPillChip(
+                        text = filter,
+                        selected = selectedFilter == filter,
+                        onClick = { selectedFilter = filter }
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
         }
 
@@ -957,8 +990,12 @@ fun AllTopicsScreen(
             item {
                 EmptyStateView(
                     iconRes = R.drawable.ic_empty_search,
-                    title = "No matching topics",
-                    message = "No topics or chapters found matching \"$searchQuery\"."
+                    title = "No topics match this filter.",
+                    message = if (searchQuery.isNotBlank()) {
+                        "No topics or chapters found matching \"$searchQuery\"."
+                    } else {
+                        "No topics found for the \"$selectedFilter\" filter."
+                    }
                 )
             }
         } else {

@@ -54,6 +54,8 @@ import com.umairshahab.etea.studyplan.data.local.RevisionEntity
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
 import com.umairshahab.etea.studyplan.domain.RevisionScheduler
 import com.umairshahab.etea.studyplan.domain.Subject
+import com.umairshahab.etea.studyplan.ui.components.AlertTrustBanner
+import com.umairshahab.etea.studyplan.ui.components.AlertTrustHelper
 import com.umairshahab.etea.studyplan.ui.components.EmptyStateView
 import com.umairshahab.etea.studyplan.ui.components.GradientPillButton
 import com.umairshahab.etea.studyplan.ui.components.GradientPillChip
@@ -87,12 +89,25 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val prefs = remember(context) {
-        context.getSharedPreferences("study_plan_prefs", Context.MODE_PRIVATE)
+        context.getSharedPreferences(AlertTrustHelper.PREFS_NAME, Context.MODE_PRIVATE)
     }
     var onboardingDismissed by remember {
         mutableStateOf(prefs.getBoolean("onboarding_dismissed", false))
     }
+    var alertsBannerDismissed by remember {
+        mutableStateOf(prefs.getBoolean(AlertTrustHelper.KEY_ALERTS_BANNER_DISMISSED, false))
+    }
     var showSettingsSheet by remember { mutableStateOf(false) }
+
+    val hasScheduledRevisions = remember(topics, revisions) {
+        topics.isNotEmpty() && revisions.any { it.status == "SCHEDULED" }
+    }
+    val showAlertsBanner = AlertTrustHelper.shouldShowBanner(
+        context = context,
+        hasScheduledRevisions = hasScheduledRevisions,
+        isDismissed = alertsBannerDismissed,
+        topicCount = topics.size
+    )
 
     val now = System.currentTimeMillis()
     val dueTodayCount = revisions.count {
@@ -155,6 +170,19 @@ fun HomeScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 }
+            }
+        }
+
+        if (showAlertsBanner) {
+            item {
+                AlertTrustBanner(
+                    onFixInSettings = { showSettingsSheet = true },
+                    onDismiss = {
+                        prefs.edit().putBoolean(AlertTrustHelper.KEY_ALERTS_BANNER_DISMISSED, true).apply()
+                        alertsBannerDismissed = true
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             }
         }
 
@@ -488,8 +516,26 @@ fun ReviseScreen(
     topics: List<TopicEntity>,
     revisions: List<RevisionEntity>,
     onMarkDone: (Long) -> Unit,
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val prefs = remember(context) {
+        context.getSharedPreferences(AlertTrustHelper.PREFS_NAME, Context.MODE_PRIVATE)
+    }
+    var alertsBannerDismissed by remember {
+        mutableStateOf(prefs.getBoolean(AlertTrustHelper.KEY_ALERTS_BANNER_DISMISSED, false))
+    }
+    val hasScheduledRevisions = remember(topics, revisions) {
+        topics.isNotEmpty() && revisions.any { it.status == "SCHEDULED" }
+    }
+    val showAlertsBanner = AlertTrustHelper.shouldShowBanner(
+        context = context,
+        hasScheduledRevisions = hasScheduledRevisions,
+        isDismissed = alertsBannerDismissed,
+        topicCount = topics.size
+    )
+
     val now = System.currentTimeMillis()
     val topicMap = remember(topics) { topics.associateBy { it.id } }
     val isDark = StudyPlanThemeDefaults.glassColors.isDark
@@ -532,6 +578,18 @@ fun ReviseScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
             )
             Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        if (showAlertsBanner) {
+            item {
+                AlertTrustBanner(
+                    onFixInSettings = onOpenSettings,
+                    onDismiss = {
+                        prefs.edit().putBoolean(AlertTrustHelper.KEY_ALERTS_BANNER_DISMISSED, true).apply()
+                        alertsBannerDismissed = true
+                    }
+                )
+            }
         }
 
         // Empty state when nothing is due today and nothing missed
@@ -598,12 +656,20 @@ fun ReviseScreen(
         if (missed.isNotEmpty()) {
             item {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Missed Revisions (${missed.size})",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
-                )
+                Column {
+                    Text(
+                        text = "Missed Revisions (${missed.size})",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "This date does not move. Mark Done when you catch up.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                }
             }
             itemsIndexed(missed, key = { _, it -> it.id }) { index, rev ->
                 val topic = topicMap[rev.topicId]

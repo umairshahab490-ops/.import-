@@ -89,6 +89,7 @@ import com.umairshahab.etea.studyplan.ui.HomeScreen
 import com.umairshahab.etea.studyplan.ui.MainViewModel
 import com.umairshahab.etea.studyplan.ui.ReviseScreen
 import com.umairshahab.etea.studyplan.ui.SubjectsScreen
+import com.umairshahab.etea.studyplan.ui.components.SettingsSheet
 import com.umairshahab.etea.studyplan.ui.components.TopicSheet
 import com.umairshahab.etea.studyplan.ui.theme.Motion
 import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
@@ -203,6 +204,7 @@ fun StudyPlanScreen(
     var defaultSubjectForNew by remember { mutableStateOf(Subject.Maths) }
     var currentSubjectInTab by remember { mutableStateOf(Subject.Maths) }
     var showBatteryOptimizationDialog by remember { mutableStateOf(false) }
+    var showSettingsSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(targetTab) {
         if (targetTab == "revise") {
@@ -504,7 +506,8 @@ fun StudyPlanScreen(
                 1 -> ReviseScreen(
                     topics = topics,
                     revisions = revisions,
-                    onMarkDone = { revId -> viewModel.markDone(revId) }
+                    onMarkDone = { revId -> viewModel.markDone(revId) },
+                    onOpenSettings = { showSettingsSheet = true }
                 )
                 2 -> SubjectsScreen(
                     topics = topics,
@@ -582,6 +585,17 @@ fun StudyPlanScreen(
                         Text(text = "Not Now")
                     }
                 }
+            )
+        }
+
+        if (showSettingsSheet) {
+            SettingsSheet(
+                themeMode = themeMode,
+                onThemeModeChange = onThemeModeChange,
+                onExportBackup = { exportLauncher.launch("studyplan_backup.json") },
+                onImportBackup = { importLauncher.launch(arrayOf("application/json", "*/*")) },
+                onEnableBackgroundAlerts = { openBatteryOptimizationSettings() },
+                onDismiss = { showSettingsSheet = false }
             )
         }
     }

@@ -22,13 +22,17 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +65,7 @@ fun SettingsSheet(
     val isDark = StudyPlanThemeDefaults.glassColors.isDark
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scrollState = rememberScrollState()
+    var showAutostartGuide by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -197,6 +202,14 @@ fun SettingsSheet(
                         onEnableBackgroundAlerts()
                     }
                 )
+
+                SettingsActionCard(
+                    title = "Autostart & battery guide",
+                    description = "Step-by-step setup for Infinix, Tecno, Xiaomi, Samsung, and Android devices",
+                    onClick = {
+                        showAutostartGuide = true
+                    }
+                )
             }
 
             // About section
@@ -236,6 +249,175 @@ fun SettingsSheet(
                 }
             }
         }
+    }
+
+    if (showAutostartGuide) {
+        AutostartGuideSheet(
+            onDismiss = { showAutostartGuide = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AutostartGuideSheet(
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = StudyPlanThemeDefaults.glassColors.isDark
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scrollState = rememberScrollState()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = if (isDark) Color(0xFF0B1329) else Color(0xFFF8FAFC),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 36.dp)
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Autostart & battery guide",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_close),
+                        contentDescription = "Close guide",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = "Device manufacturers apply aggressive background restrictions that can delay or silence spaced repetition alarms. Follow the instructions for your device to ensure reminders arrive on schedule.",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                lineHeight = 18.sp
+            )
+
+            VendorGuideCard(
+                vendorTitle = "Infinix XOS",
+                autostartStep = "Open Settings > Phone Master (or App Management) > Auto-start Management. Locate Study Plan and enable the toggle.",
+                batteryStep = "Open Settings > Battery Lab > Battery Optimization > All apps > Study Plan. Select Don't optimize.",
+                backgroundStep = "Open Settings > Apps > Study Plan > Battery. Select Allow background activity."
+            )
+
+            VendorGuideCard(
+                vendorTitle = "Tecno HiOS",
+                autostartStep = "Open Settings > App Management > Auto-start. Enable the toggle for Study Plan.",
+                batteryStep = "Open Settings > Battery Lab > Battery Optimization > select Study Plan. Select Don't optimize.",
+                backgroundStep = "Open Settings > App Management > Study Plan > Battery > Background running. Select Allow."
+            )
+
+            VendorGuideCard(
+                vendorTitle = "Xiaomi MIUI",
+                autostartStep = "Open Settings > Apps > Permissions > Autostart. Turn on the toggle for Study Plan.",
+                batteryStep = "Open Settings > Apps > Manage Apps > Study Plan > Battery saver. Select No restrictions.",
+                backgroundStep = "In the App Info screen, ensure background activity is permitted. In the Recent Apps overview, tap and hold Study Plan to lock it in memory."
+            )
+
+            VendorGuideCard(
+                vendorTitle = "Samsung One UI",
+                autostartStep = "Open Settings > Apps > Study Plan > Battery. Choose Unrestricted.",
+                batteryStep = "Open Settings > Battery and device care > Battery > Background usage limits > Never sleeping apps. Tap + and add Study Plan.",
+                backgroundStep = "In Battery settings, verify that Put unused apps to sleep is disabled for Study Plan."
+            )
+
+            VendorGuideCard(
+                vendorTitle = "Generic Android",
+                autostartStep = "If your device settings provide an Autostart, App Launch, or Startup Manager, ensure Study Plan is allowed to run automatically.",
+                batteryStep = "Open Settings > Apps > Study Plan > App battery usage (or Battery). Set optimization to Unrestricted or Don't optimize.",
+                backgroundStep = "In Study Plan App Info, confirm that Allow background activity and Background data are enabled."
+            )
+        }
+    }
+}
+
+@Composable
+private fun VendorGuideCard(
+    vendorTitle: String,
+    autostartStep: String,
+    batteryStep: String,
+    backgroundStep: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        border = StudyPlanThemeDefaults.glassColors.cardBorder,
+        colors = CardDefaults.cardColors(
+            containerColor = StudyPlanThemeDefaults.glassColors.cardSurface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = vendorTitle,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            VendorStepItem(
+                stepLabel = "1. Enable autostart",
+                instruction = autostartStep
+            )
+
+            VendorStepItem(
+                stepLabel = "2. Disable battery optimization",
+                instruction = batteryStep
+            )
+
+            VendorStepItem(
+                stepLabel = "3. Allow background activity",
+                instruction = backgroundStep
+            )
+        }
+    }
+}
+
+@Composable
+private fun VendorStepItem(
+    stepLabel: String,
+    instruction: String
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = stepLabel,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text = instruction,
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+            lineHeight = 16.sp
+        )
     }
 }
 

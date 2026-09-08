@@ -205,7 +205,7 @@ class MainViewModel(
         }
     }
 
-    suspend fun restoreBackup(newTopics: List<TopicEntity>, newRevisions: List<RevisionEntity>) = withContext(Dispatchers.IO) {
+    suspend fun restoreBackup(newTopics: List<TopicEntity>, newRevisions: List<RevisionEntity>): Pair<Int, Int> = withContext(Dispatchers.IO) {
         database.withTransaction {
             revisionDao.deleteAll()
             topicDao.deleteAll()
@@ -224,6 +224,7 @@ class MainViewModel(
                 subject = matchingTopic?.subject ?: "Study"
             )
         }
+        Pair(newTopics.size, newRevisions.size)
     }
 
     class Factory(

@@ -7,6 +7,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BackupManagerTest {
@@ -162,5 +163,116 @@ class BackupManagerTest {
             }
         """.trimIndent()
         assertNull(BackupManager.parseBackupJson(missingKeysJson))
+    }
+
+    @Test
+    fun restoreReturnsTopicAndRevisionCountsAndReplaceClearsExistingFully() {
+        val existingTopics = mutableListOf(
+            TopicEntity(
+                id = 99L,
+                subject = "Maths",
+                title = "Old Topic to be Replaced",
+                chapter = null,
+                createdAt = 100L,
+                revisionHour = 10,
+                revisionMinute = 0,
+                intervals = listOf(1, 3)
+            )
+        )
+        val existingRevisions = mutableListOf(
+            RevisionEntity(
+                id = 999L,
+                topicId = 99L,
+                intervalIndex = 0,
+                intervalDays = 1,
+                dueAt = 500L,
+                alertAt = 400L,
+                status = "SCHEDULED",
+                completedAt = null
+            )
+        )
+
+        val newTopics = listOf(
+            TopicEntity(
+                id = 1L,
+                subject = "Physics",
+                title = "New Topic 1",
+                chapter = "Ch 1",
+                createdAt = 200L,
+                revisionHour = 9,
+                revisionMinute = 30,
+                intervals = listOf(2, 4)
+            ),
+            TopicEntity(
+                id = 2L,
+                subject = "Chemistry",
+                title = "New Topic 2",
+                chapter = null,
+                createdAt = 300L,
+                revisionHour = 11,
+                revisionMinute = 0,
+                intervals = listOf(1, 7)
+            )
+        )
+        val newRevisions = listOf(
+            RevisionEntity(
+                id = 101L,
+                topicId = 1L,
+                intervalIndex = 0,
+                intervalDays = 2,
+                dueAt = 1000L,
+                alertAt = 900L,
+                status = "SCHEDULED",
+                completedAt = null
+            ),
+            RevisionEntity(
+                id = 102L,
+                topicId = 1L,
+                intervalIndex = 1,
+                intervalDays = 4,
+                dueAt = 2000L,
+                alertAt = 1900L,
+                status = "SCHEDULED",
+                completedAt = null
+            ),
+            RevisionEntity(
+                id = 103L,
+                topicId = 2L,
+                intervalIndex = 0,
+                intervalDays = 1,
+                dueAt = 3000L,
+                alertAt = 2900L,
+                status = "DONE",
+                completedAt = 2950L
+            )
+        )
+
+        val (topicCount, revisionCount) = BackupManager.restore(
+            newTopics = newTopics,
+            newRevisions = newRevisions,
+            targetTopics = existingTopics,
+            targetRevisions = existingRevisions
+        )
+
+        // Verifies returning topic and revision counts
+        assertEquals(2, topicCount)
+        assertEquals(3, revisionCount)
+
+        // Verifies replace-still-clears-fully: old elements are gone
+        assertEquals(2, existingTopics.size)
+        assertEquals(3, existingRevisions.size)
+        assertEquals(1L, existingTopics[0].id)
+        assertEquals(2L, existingTopics[1].id)
+        assertTrue(existingTopics.none { it.id == 99L })
+        assertTrue(existingRevisions.none { it.id == 999L })
+    }
+
+    @Test
+    fun getSuggestedBackupFilenameProducesExpectedFormatWithLocalDate() {
+        val filename = BackupManager.getSuggestedBackupFilename()
+        assertTrue(filename.startsWith("studyplan-backup-"))
+        assertTrue(filename.endsWith(".json"))
+        val regex = Regex("""^studyplan-backup-\d{4}-\d{2}-\d{2}\.json$""")
+        assertTrue(regex.matches(filename))
     }
 }

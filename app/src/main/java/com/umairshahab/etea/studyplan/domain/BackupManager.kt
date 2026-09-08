@@ -113,4 +113,22 @@ object BackupManager {
             null
         }
     }
+
+    fun getSuggestedBackupFilename(nowMillis: Long = System.currentTimeMillis()): String {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        return "studyplan-backup-${sdf.format(java.util.Date(nowMillis))}.json"
+    }
+
+    fun restore(
+        newTopics: List<TopicEntity>,
+        newRevisions: List<RevisionEntity>,
+        targetTopics: MutableList<TopicEntity>,
+        targetRevisions: MutableList<RevisionEntity>
+    ): Pair<Int, Int> {
+        targetTopics.clear()
+        targetRevisions.clear()
+        targetTopics.addAll(newTopics)
+        targetRevisions.addAll(newRevisions)
+        return Pair(targetTopics.size, targetRevisions.size)
+    }
 }

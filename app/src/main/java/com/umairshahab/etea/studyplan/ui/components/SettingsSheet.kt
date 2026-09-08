@@ -1,5 +1,6 @@
 package com.umairshahab.etea.studyplan.ui.components
 
+import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,10 +28,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,6 +43,9 @@ import com.umairshahab.etea.studyplan.R
 import com.umairshahab.etea.studyplan.ui.theme.PrimaryGradientBrush
 import com.umairshahab.etea.studyplan.ui.theme.StudyPlanThemeDefaults
 import com.umairshahab.etea.studyplan.ui.theme.ThemeMode
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,6 +130,18 @@ fun SettingsSheet(
             }
 
             // Backup & Data section
+            val context = LocalContext.current
+            val lastBackupExportedAt = remember(context) {
+                context.getSharedPreferences("study_plan_prefs", Context.MODE_PRIVATE)
+                    .getLong("last_backup_exported_at", 0L)
+            }
+            val lastBackupCaption = if (lastBackupExportedAt <= 0L) {
+                "Last backup: never"
+            } else {
+                val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+                "Last backup: ${sdf.format(Date(lastBackupExportedAt))}"
+            }
+
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -133,6 +151,11 @@ fun SettingsSheet(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
+                Text(
+                    text = lastBackupCaption,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                 )
 
                 SettingsActionCard(

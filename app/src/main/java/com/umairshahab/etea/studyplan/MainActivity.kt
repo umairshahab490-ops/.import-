@@ -31,8 +31,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -42,6 +48,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -53,6 +60,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -79,6 +87,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.umairshahab.etea.studyplan.data.local.RevisionEntity
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
 import com.umairshahab.etea.studyplan.domain.BackupManager
 import com.umairshahab.etea.studyplan.domain.Subject
@@ -89,6 +98,7 @@ import com.umairshahab.etea.studyplan.ui.HomeScreen
 import com.umairshahab.etea.studyplan.ui.MainViewModel
 import com.umairshahab.etea.studyplan.ui.ReviseScreen
 import com.umairshahab.etea.studyplan.ui.SubjectsScreen
+import com.umairshahab.etea.studyplan.ui.components.GradientPillButton
 import com.umairshahab.etea.studyplan.ui.components.SettingsSheet
 import com.umairshahab.etea.studyplan.ui.components.TopicSheet
 import com.umairshahab.etea.studyplan.ui.theme.Motion
@@ -285,6 +295,8 @@ fun StudyPlanScreen(
         }
     }
 
+    var pendingImportPayload by remember { mutableStateOf<Pair<List<TopicEntity>, List<RevisionEntity>>?>(null) }
+
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -295,8 +307,11 @@ fun StudyPlanScreen(
                     context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                         outputStream.write(json.toByteArray(Charsets.UTF_8))
                     }
+                    val nowMillis = System.currentTimeMillis()
+                    val prefs = context.getSharedPreferences("study_plan_prefs", Context.MODE_PRIVATE)
+                    prefs.edit().putLong("last_backup_exported_at", nowMillis).apply()
                     withContext(Dispatchers.Main) {
-                        snackbarHostState.showSnackbar("Backup exported successfully")
+                        snackbarHostState.showSnackbar("Backup exported")
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
@@ -319,9 +334,8 @@ fun StudyPlanScreen(
                     if (jsonString != null) {
                         val result = BackupManager.parseBackupJson(jsonString)
                         if (result != null) {
-                            viewModel.restoreBackup(result.first, result.second)
                             withContext(Dispatchers.Main) {
-                                snackbarHostState.showSnackbar("Backup restored")
+                                pendingImportPayload = result
                             }
                         } else {
                             withContext(Dispatchers.Main) {
@@ -499,7 +513,10 @@ fun StudyPlanScreen(
                     onMarkDone = { revId -> viewModel.markDone(revId) },
                     onNavigateToTopics = { selectedTab = 3 },
                     onNavigateToRevise = { selectedTab = 1 },
-                    onExportBackup = { exportLauncher.launch("studyplan_backup.json") },
+                    onExportBackup = {
+                        val suggestedFilename = BackupManager.getSuggestedBackupFilename()
+                        exportLauncher.launch(suggestedFilename)
+                    },
                     onImportBackup = { importLauncher.launch(arrayOf("application/json", "*/*")) },
                     onEnableBackgroundAlerts = { openBatteryOptimizationSettings() }
                 )
@@ -592,11 +609,111 @@ fun StudyPlanScreen(
             SettingsSheet(
                 themeMode = themeMode,
                 onThemeModeChange = onThemeModeChange,
-                onExportBackup = { exportLauncher.launch("studyplan_backup.json") },
+                onExportBackup = {
+                    val suggestedFilename = BackupManager.getSuggestedBackupFilename()
+                    exportLauncher.launch(suggestedFilename)
+                },
                 onImportBackup = { importLauncher.launch(arrayOf("application/json", "*/*")) },
                 onEnableBackgroundAlerts = { openBatteryOptimizationSettings() },
                 onDismiss = { showSettingsSheet = false }
             )
+        }
+
+        pendingImportPayload?.let { payload ->
+            ImportPreviewSheet(
+                topicCount = payload.first.size,
+                revisionCount = payload.second.size,
+                onReplace = {
+                    val data = payload
+                    pendingImportPayload = null
+                    scope.launch {
+                        val (topicCount, revisionCount) = viewModel.restoreBackup(data.first, data.second)
+                        snackbarHostState.showSnackbar(
+                            "Backup restored · $topicCount topics · $revisionCount revisions — alarms updated"
+                        )
+                    }
+                },
+                onCancel = {
+                    pendingImportPayload = null
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ImportPreviewSheet(
+    topicCount: Int,
+    revisionCount: Int,
+    onReplace: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = StudyPlanThemeDefaults.glassColors.isDark
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onCancel,
+        sheetState = sheetState,
+        containerColor = if (isDark) Color(0xFF0B1329) else Color(0xFFF8FAFC),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Restore Backup",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Text(
+                text = "This backup contains $topicCount topics and $revisionCount revisions.",
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 22.sp
+            )
+
+            Text(
+                text = "Existing topics and revision schedules will be cleared and replaced with the contents of this backup. Completed history from the backup will be preserved, and revision alarms will be updated.",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                lineHeight = 18.sp
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                TextButton(
+                    onClick = onCancel,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                ) {
+                    Text(
+                        text = "Cancel",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                GradientPillButton(
+                    text = "Replace",
+                    onClick = onReplace,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                )
+            }
         }
     }
 }

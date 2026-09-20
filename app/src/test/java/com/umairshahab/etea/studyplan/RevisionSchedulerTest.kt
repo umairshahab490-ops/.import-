@@ -115,4 +115,24 @@ class RevisionSchedulerTest {
             assertEquals(index, revision.intervalIndex)
         }
     }
+
+    @Test
+    fun targetTimeAlreadyPassedTodayPushesBaseTimestampToTomorrow() {
+        val requestedHour = 8
+        val requestedMinute = 0
+
+        // Anchor at 2026-09-01 10:00 UTC (past the 08:00 requested time)
+        val anchorZdt = ZonedDateTime.of(2026, 9, 1, 10, 0, 0, 0, zoneId)
+        val anchorMillis = anchorZdt.toInstant().toEpochMilli()
+
+        val baseMillis = RevisionScheduler.baseTimestamp(anchorMillis, requestedHour, requestedMinute, zoneId)
+        val baseZdt = Instant.ofEpochMilli(baseMillis).atZone(zoneId)
+
+        // Must push to tomorrow: 2026-09-02 08:00 UTC
+        assertEquals(2026, baseZdt.year)
+        assertEquals(9, baseZdt.monthValue)
+        assertEquals(2, baseZdt.dayOfMonth)
+        assertEquals(requestedHour, baseZdt.hour)
+        assertEquals(requestedMinute, baseZdt.minute)
+    }
 }

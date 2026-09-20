@@ -275,4 +275,28 @@ class BackupManagerTest {
         val regex = Regex("""^studyplan-backup-\d{4}-\d{2}-\d{2}\.json$""")
         assertTrue(regex.matches(filename))
     }
+
+    @Test
+    fun parseBackupJsonReturnsNullWhenTopicHasInvalidSubject() {
+        val invalidSubjectJson = """
+            {
+                "version": 1,
+                "exportedAt": 12345,
+                "topics": [
+                    {
+                        "id": 1,
+                        "subject": "Biology",
+                        "title": "Cells",
+                        "chapter": null,
+                        "createdAt": 1000,
+                        "revisionHour": 10,
+                        "revisionMinute": 0,
+                        "intervals": [1, 3]
+                    }
+                ],
+                "revisions": []
+            }
+        """.trimIndent()
+        assertNull(BackupManager.parseBackupJson(invalidSubjectJson))
+    }
 }

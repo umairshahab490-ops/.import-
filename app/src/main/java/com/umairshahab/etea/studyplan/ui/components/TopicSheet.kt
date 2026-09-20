@@ -193,7 +193,7 @@ fun TopicSheet(
                 value = intervalsText,
                 onValueChange = { intervalsText = it },
                 label = { Text("Revision Intervals (days, comma-separated)") },
-                supportingText = { Text("Default: 3,7,14,21,30,45,60,90,120,180,365") },
+                supportingText = { Text("Default: ${RevisionScheduler.DEFAULT_INTERVALS.joinToString(",")}") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )

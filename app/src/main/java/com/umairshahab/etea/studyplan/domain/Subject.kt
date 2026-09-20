@@ -7,10 +7,15 @@ enum class Subject(val displayName: String) {
     English("English");
 
     companion object {
-        fun fromName(name: String): Subject {
+        fun fromNameOrNull(name: String?): Subject? {
+            if (name == null) return null
             return entries.firstOrNull {
                 it.name.equals(name, ignoreCase = true) || it.displayName.equals(name, ignoreCase = true)
-            } ?: Maths
+            }
+        }
+
+        fun fromName(name: String): Subject {
+            return fromNameOrNull(name) ?: Maths
         }
     }
 }

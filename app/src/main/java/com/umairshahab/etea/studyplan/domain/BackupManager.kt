@@ -71,6 +71,8 @@ object BackupManager {
             val topicsList = mutableListOf<TopicEntity>()
             for (i in 0 until topicsArray.length()) {
                 val tObj = topicsArray.getJSONObject(i)
+                val rawSubject = tObj.getString("subject")
+                val subjectEnum = Subject.fromNameOrNull(rawSubject) ?: return null
                 val intervalsArr = tObj.getJSONArray("intervals")
                 val intervals = mutableListOf<Int>()
                 for (j in 0 until intervalsArr.length()) {
@@ -79,7 +81,7 @@ object BackupManager {
                 topicsList.add(
                     TopicEntity(
                         id = tObj.getLong("id"),
-                        subject = tObj.getString("subject"),
+                        subject = subjectEnum.displayName,
                         title = tObj.getString("title"),
                         chapter = if (tObj.isNull("chapter")) null else tObj.getString("chapter"),
                         createdAt = tObj.getLong("createdAt"),

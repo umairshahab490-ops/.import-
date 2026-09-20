@@ -37,20 +37,14 @@ object AlertScheduler {
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        alertAt,
-                        pendingIntent
-                    )
-                } else {
-                    // Exact alarms disallowed; best-effort fallback
-                    alarmManager.setAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        alertAt,
-                        pendingIntent
-                    )
+                if (!alarmManager.canScheduleExactAlarms()) {
+                    return
                 }
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    alertAt,
+                    pendingIntent
+                )
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,

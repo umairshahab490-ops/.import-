@@ -1,6 +1,7 @@
 package com.umairshahab.etea.studyplan.ui.components
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -136,9 +138,23 @@ fun SettingsSheet(
 
             // Backup & Data section
             val context = LocalContext.current
-            val lastBackupExportedAt = remember(context) {
-                context.getSharedPreferences("study_plan_prefs", Context.MODE_PRIVATE)
-                    .getLong("last_backup_exported_at", 0L)
+            var lastBackupExportedAt by remember(context) {
+                mutableStateOf(
+                    context.getSharedPreferences("study_plan_prefs", Context.MODE_PRIVATE)
+                        .getLong("last_backup_exported_at", 0L)
+                )
+            }
+            DisposableEffect(context) {
+                val prefs = context.getSharedPreferences("study_plan_prefs", Context.MODE_PRIVATE)
+                val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                    if (key == "last_backup_exported_at") {
+                        lastBackupExportedAt = prefs.getLong("last_backup_exported_at", 0L)
+                    }
+                }
+                prefs.registerOnSharedPreferenceChangeListener(listener)
+                onDispose {
+                    prefs.unregisterOnSharedPreferenceChangeListener(listener)
+                }
             }
             val lastBackupCaption = if (lastBackupExportedAt <= 0L) {
                 "Last backup: never"

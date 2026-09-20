@@ -38,8 +38,19 @@ class MainViewModel(
     private var lastDeletedRevisionsSnapshot: List<RevisionEntity> = emptyList()
 
     init {
-        // Run missed scan once on app launch
+        // Run missed scan and top-up upcoming alarms on app launch
         scanForMissed()
+        topUpAlarms()
+    }
+
+    private fun topUpAlarms() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                AlertScheduler.rescheduleUpcoming(getApplication())
+            } catch (_: Exception) {
+                // Fail silently
+            }
+        }
     }
 
     fun scanForMissed() {

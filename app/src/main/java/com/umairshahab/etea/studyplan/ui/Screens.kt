@@ -860,7 +860,7 @@ fun AllTopicsScreen(
     modifier: Modifier = Modifier
 ) {
     val now = System.currentTimeMillis()
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedFilter by rememberSaveable { mutableStateOf("All") }
 
     val revisionsByTopic = remember(revisions) {

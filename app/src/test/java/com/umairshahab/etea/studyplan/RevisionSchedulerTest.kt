@@ -2,6 +2,7 @@ package com.umairshahab.etea.studyplan
 
 import com.umairshahab.etea.studyplan.domain.RevisionScheduler
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant

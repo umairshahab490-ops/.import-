@@ -6,7 +6,7 @@ A native, offline-first Android application engineered to help students preparin
 
 ## Overview
 
-Retaining dense syllabus material across subjects like Biology, Physics, Chemistry, Mathematics, and English requires structured revision at increasing intervals. **ETEA Study Plan** automates this schedule: when a student logs a newly studied topic, the app automatically generates spaced revision sessions, rings local notifications 15 minutes before scheduled study hours, tracks completion rates, and visualizes upcoming study loads across an interactive calendar.
+Retaining dense syllabus material across subjects like Biology, Physics, Chemistry, Mathematics, and English requires structured revision at increasing intervals. **ETEA Study Plan** automates this schedule: when a student logs a newly studied topic, the app automatically generates spaced revision sessions, rings local notifications 2 minutes before scheduled study hours, tracks completion rates, and visualizes upcoming study loads across an interactive calendar.
 
 The application operates completely offline with zero tracking, zero cloud dependencies, and zero unnecessary permissions—keeping student data entirely private and self-contained on the device.
 
@@ -15,7 +15,7 @@ The application operates completely offline with zero tracking, zero cloud depen
 ## Features
 
 - **Automated Spaced Repetition Engine**: Computes exact revision milestones based on proven memory retention curves (default intervals: Day 1, 3, 7, 15, and 30, with support for custom intervals).
-- **Exact Local Notifications**: Schedules alerts via Android `AlarmManager` with an exact 15-minute advance reminder (`SCHEDULE_EXACT_ALARM`) and background resilience.
+- **Exact Local Notifications**: Schedules alerts via Android `AlarmManager` with an exact 2-minute advance reminder (`SCHEDULE_EXACT_ALARM`) and background resilience.
 - **Interactive Multi-Month Calendar**: Collapsible monthly view cards with animated expansion (`AnimatedVisibility`) and detailed day-by-day revision review bottom sheets.
 - **Offline Backup & Restore**: Storage Access Framework (SAF) JSON export and import for lossless, zero-cloud data preservation and cross-device migration.
 - **Repository Management**: Search and filter topics by subject, chapter, or keyword; track completion status (`SCHEDULED`, `DONE`, `OVERDUE`).
@@ -96,3 +96,17 @@ For automated release signing in GitHub Actions, configure the following **Repos
 3. **Permissions on Android 13+**:
    - Grant the notification permission (`POST_NOTIFICATIONS`) on first launch to ensure revision reminders ring reliably.
    - For uninterrupted exact alarms, ensure battery optimizations are disabled for the app.
+
+---
+
+## Technical Specifications & Known Debt
+
+- **Delete Undo Window**: Delete operations provide a short undo window (~4s, respects accessibility timeout) via snackbar action.
+- **Known Debt & Audit Status**:
+  - Alert offset synchronized to 2 minutes across domain engine, notification channel copy, and unit tests.
+  - Rollover calculation verified with boundary tests for target times equal to anchor.
+  - Overdue transition encapsulated in pure domain predicate without Android framework dependencies.
+  - Backup restore production path routed through verified memory helper.
+  - Redundant SDK exact alarm checks consolidated to single source of truth (`AlertScheduler`).
+  - Redundant minSdk 24 guards removed.
+

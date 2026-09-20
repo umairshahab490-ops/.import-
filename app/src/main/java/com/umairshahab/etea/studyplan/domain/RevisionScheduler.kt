@@ -9,9 +9,18 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 object RevisionScheduler {
-    const val ALERT_OFFSET_MILLIS: Long = 15 * 60 * 1000L // 15 minutes before
+    const val ALERT_OFFSET_MILLIS: Long = 120000L // 2 minutes before
     val DEFAULT_INTERVALS: List<Int> = listOf(1, 3, 7, 15, 30)
     private val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.ENGLISH)
+
+    /**
+     * Pure predicate for overdue transition:
+     * A revision transitions to MISSED if and only if its status is "SCHEDULED" and its dueAt timestamp is strictly in the past (< nowMillis).
+     * Already MISSED or DONE revisions never transition (idempotent, never revert).
+     */
+    fun shouldTransitionToMissed(status: String, dueAt: Long, nowMillis: Long): Boolean {
+        return status == "SCHEDULED" && dueAt < nowMillis
+    }
 
     fun parseIntervals(text: String): List<Int> {
         return text.split(",")

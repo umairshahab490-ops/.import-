@@ -11,6 +11,7 @@ import com.umairshahab.etea.studyplan.data.local.RevisionDao
 import com.umairshahab.etea.studyplan.data.local.RevisionEntity
 import com.umairshahab.etea.studyplan.data.local.TopicDao
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
+import com.umairshahab.etea.studyplan.domain.BackupManager
 import com.umairshahab.etea.studyplan.domain.RevisionScheduler
 import com.umairshahab.etea.studyplan.notifications.AlertScheduler
 import kotlinx.coroutines.Dispatchers
@@ -58,7 +59,9 @@ class MainViewModel(
             val now = System.currentTimeMillis()
             val overdue = revisionDao.getScheduledPastDue(now)
             for (rev in overdue) {
-                revisionDao.updateStatus(rev.id, "MISSED", null)
+                if (RevisionScheduler.shouldTransitionToMissed(rev.status, rev.dueAt, now)) {
+                    revisionDao.updateStatus(rev.id, "MISSED", null)
+                }
             }
         }
     }
@@ -217,16 +220,24 @@ class MainViewModel(
     }
 
     suspend fun restoreBackup(newTopics: List<TopicEntity>, newRevisions: List<RevisionEntity>): Pair<Int, Int> = withContext(Dispatchers.IO) {
+        val targetTopics = mutableListOf<TopicEntity>()
+        val targetRevisions = mutableListOf<RevisionEntity>()
+        val counts = BackupManager.restore(
+            newTopics = newTopics,
+            newRevisions = newRevisions,
+            targetTopics = targetTopics,
+            targetRevisions = targetRevisions
+        )
         database.withTransaction {
             revisionDao.deleteAll()
             topicDao.deleteAll()
-            topicDao.insertAll(newTopics)
-            revisionDao.insertAll(newRevisions)
+            topicDao.insertAll(targetTopics)
+            revisionDao.insertAll(targetRevisions)
         }
         val app = getApplication<Application>()
         val now = System.currentTimeMillis()
-        newRevisions.filter { it.status == "SCHEDULED" && it.alertAt > now }.forEach { rev ->
-            val matchingTopic = newTopics.find { it.id == rev.topicId }
+        targetRevisions.filter { it.status == "SCHEDULED" && it.alertAt > now }.forEach { rev ->
+            val matchingTopic = targetTopics.find { it.id == rev.topicId }
             AlertScheduler.schedule(
                 context = app,
                 revisionId = rev.id,
@@ -235,7 +246,7 @@ class MainViewModel(
                 subject = matchingTopic?.subject ?: "Study"
             )
         }
-        Pair(newTopics.size, newRevisions.size)
+        counts
     }
 
     class Factory(

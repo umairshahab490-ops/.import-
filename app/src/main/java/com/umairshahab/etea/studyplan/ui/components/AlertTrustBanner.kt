@@ -55,12 +55,8 @@ object AlertTrustHelper {
             return false
         }
 
-        // Notification check (API 24+; treat condition as ok when API unavailable)
-        val notificationsOk = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            NotificationManagerCompat.from(context).areNotificationsEnabled()
-        } else {
-            true
-        }
+        // Notification check (minSdk is 24, areNotificationsEnabled is always available)
+        val notificationsOk = NotificationManagerCompat.from(context).areNotificationsEnabled()
 
         // Exact alarms check (API 31+; treat condition as ok when API unavailable)
         val exactAlarmsOk = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

@@ -27,7 +27,7 @@ object NotificationHelper {
                 "Revision Reminders",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Alerts 15 minutes before revision sessions are due"
+                description = "Alerts 2 minutes before revision sessions are due"
                 enableVibration(true)
             }
 
@@ -75,7 +75,7 @@ object NotificationHelper {
         val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle("Revision Due Soon: $topicTitle")
-            .setContentText("Subject: $subject • Scheduled revision session starts in 15 minutes.")
+            .setContentText("Subject: $subject • Scheduled revision session starts in 2 minutes.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .addAction(0, "Mark Done", markDonePendingIntent)

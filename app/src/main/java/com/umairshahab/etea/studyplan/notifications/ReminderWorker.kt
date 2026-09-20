@@ -5,6 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.umairshahab.etea.studyplan.StudyPlanApp
 import com.umairshahab.etea.studyplan.data.local.AppDatabase
+import com.umairshahab.etea.studyplan.domain.RevisionScheduler
 
 class ReminderWorker(
     context: Context,
@@ -23,14 +24,16 @@ class ReminderWorker(
         // 1. Transition SCHEDULED revisions with dueAt < now to MISSED in DB, and show one notification per transition
         val overdueRevisions = revisionDao.getScheduledPastDue(now)
         for (rev in overdueRevisions) {
-            revisionDao.updateStatus(rev.id, "MISSED", null)
-            val topic = topicDao.getById(rev.topicId)
-            NotificationHelper.showMissedNotification(
-                context = context,
-                revisionId = rev.id,
-                topicTitle = topic?.title ?: "Topic #${rev.topicId}",
-                subject = topic?.subject ?: ""
-            )
+            if (RevisionScheduler.shouldTransitionToMissed(rev.status, rev.dueAt, now)) {
+                revisionDao.updateStatus(rev.id, "MISSED", null)
+                val topic = topicDao.getById(rev.topicId)
+                NotificationHelper.showMissedNotification(
+                    context = context,
+                    revisionId = rev.id,
+                    topicTitle = topic?.title ?: "Topic #${rev.topicId}",
+                    subject = topic?.subject ?: ""
+                )
+            }
         }
 
         // 2. Schedule alarms for revisions whose alertAt falls within the next 48 hours (tops up alarms)

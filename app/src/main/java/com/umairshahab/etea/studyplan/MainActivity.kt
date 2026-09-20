@@ -628,8 +628,10 @@ fun StudyPlanScreen(
                     pendingImportPayload = null
                     scope.launch {
                         val (topicCount, revisionCount) = viewModel.restoreBackup(data.first, data.second)
+                        val topicsStr = if (topicCount == 1) "1 topic" else "$topicCount topics"
+                        val revisionsStr = if (revisionCount == 1) "1 revision" else "$revisionCount revisions"
                         snackbarHostState.showSnackbar(
-                            "Backup restored · $topicCount topics · $revisionCount revisions — alarms updated"
+                            "Backup restored · $topicsStr · $revisionsStr — alarms updated"
                         )
                     }
                 },
@@ -673,8 +675,11 @@ fun ImportPreviewSheet(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
+            val topicsText = if (topicCount == 1) "1 topic" else "$topicCount topics"
+            val revisionsText = if (revisionCount == 1) "1 revision" else "$revisionCount revisions"
+
             Text(
-                text = "This backup contains $topicCount topics and $revisionCount revisions.",
+                text = "This backup contains $topicsText and $revisionsText.",
                 fontSize = 15.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 22.sp

@@ -72,7 +72,7 @@ class RevisionSchedulerTest {
     }
 
     @Test
-    fun notificationAlertOffsetIsFifteenMinutesBefore() {
+    fun notificationAlertOffsetIsTwoMinutesBefore() {
         val topicId = 3L
         val anchorZdt = ZonedDateTime.of(2026, 9, 1, 8, 0, 0, 0, zoneId)
         val anchorMillis = anchorZdt.toInstant().toEpochMilli()
@@ -86,7 +86,7 @@ class RevisionSchedulerTest {
             zoneId = zoneId
         )
 
-        val expectedOffsetMillis = 15 * 60 * 1000L // 15 min
+        val expectedOffsetMillis = 120000L // 2 min
         revisions.forEach { revision ->
             assertEquals(expectedOffsetMillis, revision.dueAt - revision.alertAt)
         }
@@ -134,5 +134,45 @@ class RevisionSchedulerTest {
         assertEquals(2, baseZdt.dayOfMonth)
         assertEquals(requestedHour, baseZdt.hour)
         assertEquals(requestedMinute, baseZdt.minute)
+    }
+
+    @Test
+    fun targetTimeExactlyEqualToAnchorPushesBaseTimestampToTomorrow() {
+        val requestedHour = 8
+        val requestedMinute = 30
+
+        // Anchor at 2026-09-01 08:30:00.000 UTC (EXACTLY equal to target time)
+        val anchorZdt = ZonedDateTime.of(2026, 9, 1, requestedHour, requestedMinute, 0, 0, zoneId)
+        val anchorMillis = anchorZdt.toInstant().toEpochMilli()
+
+        // Spec: "if not after anchor, +1 day" -> equal is NOT after anchor, rolls to next day
+        val baseMillis = RevisionScheduler.baseTimestamp(anchorMillis, requestedHour, requestedMinute, zoneId)
+        val baseZdt = Instant.ofEpochMilli(baseMillis).atZone(zoneId)
+
+        assertEquals(2026, baseZdt.year)
+        assertEquals(9, baseZdt.monthValue)
+        assertEquals(2, baseZdt.dayOfMonth)
+        assertEquals(requestedHour, baseZdt.hour)
+        assertEquals(requestedMinute, baseZdt.minute)
+    }
+
+    @Test
+    fun shouldTransitionToMissedPurePredicateTest() {
+        val now = 100_000L
+        val pastDue = 90_000L
+        val futureDue = 110_000L
+
+        // SCHEDULED + past = true
+        assertTrue(RevisionScheduler.shouldTransitionToMissed("SCHEDULED", pastDue, now))
+
+        // SCHEDULED + future = false
+        assertFalse(RevisionScheduler.shouldTransitionToMissed("SCHEDULED", futureDue, now))
+
+        // MISSED + past = false (idempotent, does not re-transition)
+        assertFalse(RevisionScheduler.shouldTransitionToMissed("MISSED", pastDue, now))
+
+        // DONE = false (never revert completed items)
+        assertFalse(RevisionScheduler.shouldTransitionToMissed("DONE", pastDue, now))
+        assertFalse(RevisionScheduler.shouldTransitionToMissed("DONE", futureDue, now))
     }
 }

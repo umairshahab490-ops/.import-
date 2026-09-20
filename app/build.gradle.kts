@@ -12,8 +12,8 @@ android {
         applicationId = "com.umairshahab.etea.studyplan"
         minSdk = 24
         targetSdk = 34
-        versionCode = 24
-        versionName = "1.9.7"
+        versionCode = 25
+        versionName = "1.9.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

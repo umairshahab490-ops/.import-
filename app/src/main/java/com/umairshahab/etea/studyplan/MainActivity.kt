@@ -295,6 +295,22 @@ fun StudyPlanScreen(
         }
     }
 
+    fun handleBatchMarkDone(revisionIds: List<Long>) {
+        if (revisionIds.isEmpty()) return
+        val count = revisionIds.size
+        viewModel.batchMarkDone(revisionIds)
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "Marked $count revisions done",
+                actionLabel = "UNDO",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.undoBatchMarkDone()
+            }
+        }
+    }
+
     var pendingImportPayload by remember { mutableStateOf<Pair<List<TopicEntity>, List<RevisionEntity>>?>(null) }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -524,6 +540,7 @@ fun StudyPlanScreen(
                     topics = topics,
                     revisions = revisions,
                     onMarkDone = { revId -> viewModel.markDone(revId) },
+                    onBatchMarkDone = { ids -> handleBatchMarkDone(ids) },
                     onOpenSettings = { showSettingsSheet = true }
                 )
                 2 -> SubjectsScreen(

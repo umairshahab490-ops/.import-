@@ -23,15 +23,20 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -517,6 +522,7 @@ fun ReviseScreen(
     topics: List<TopicEntity>,
     revisions: List<RevisionEntity>,
     onMarkDone: (Long) -> Unit,
+    onBatchMarkDone: (List<Long>) -> Unit = {},
     onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -559,177 +565,449 @@ fun ReviseScreen(
         }.sortedBy { it.dueAt }.take(10)
     }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Revision Queue",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "Static spaced repetition schedule",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
+    // Batch Selection Mode State (remember/rememberSaveable only, no DB table)
+    var isSelectionMode by rememberSaveable { mutableStateOf(false) }
+    var selectedIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
 
-        if (showAlertsBanner) {
+    val allPendingRows = remember(dueToday, missed, upcoming) {
+        dueToday + missed + upcoming
+    }
+    val allPendingIds = remember(allPendingRows) {
+        allPendingRows.map { it.id }.toSet()
+    }
+
+    fun exitSelectionMode() {
+        isSelectionMode = false
+        selectedIds = emptySet()
+        showConfirmDialog = false
+    }
+
+    fun toggleSelectId(id: Long) {
+        selectedIds = if (id in selectedIds) {
+            selectedIds - id
+        } else {
+            selectedIds + id
+        }
+    }
+
+    fun toggleSelectSection(sectionIds: List<Long>) {
+        val allContained = sectionIds.all { it in selectedIds }
+        selectedIds = if (allContained) {
+            selectedIds - sectionIds.toSet()
+        } else {
+            selectedIds + sectionIds.toSet()
+        }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
             item {
-                AlertTrustBanner(
-                    onFixInSettings = onOpenSettings,
-                    onDismiss = {
-                        prefs.edit().putBoolean(AlertTrustHelper.KEY_ALERTS_BANNER_DISMISSED, true).apply()
-                        alertsBannerDismissed = true
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Revision Queue",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = "Static spaced repetition schedule",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        )
                     }
-                )
+                    if (allPendingRows.isNotEmpty()) {
+                        OutlinedButton(
+                            onClick = {
+                                if (isSelectionMode) {
+                                    exitSelectionMode()
+                                } else {
+                                    isSelectionMode = true
+                                    selectedIds = emptySet()
+                                }
+                            },
+                            shape = CircleShape,
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
+                            Text(
+                                text = if (isSelectionMode) "Exit Batch" else "Batch Select",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
             }
-        }
 
-        // Empty state when nothing is due today and nothing missed
-        if (dueToday.isEmpty() && missed.isEmpty()) {
-            item {
-                if (topics.isEmpty()) {
-                    EmptyStateView(
-                        iconRes = R.drawable.ic_empty_clock,
-                        title = "Nothing due now.",
-                        message = "Add a topic to build your revision ladder."
-                    )
-                } else {
-                    val nextScheduled = remember(revisions, now) {
-                        revisions.filter { it.status == "SCHEDULED" && it.dueAt >= now }.minByOrNull { it.dueAt }
+            // Global Select All / Deselect All control bar when in selection mode
+            if (isSelectionMode && allPendingRows.isNotEmpty()) {
+                item {
+                    val allSelected = allPendingIds.isNotEmpty() && allPendingIds.all { it in selectedIds }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (allSelected) "All items selected" else "Select or deselect all items",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Medium
+                            )
+                            TextButton(
+                                onClick = {
+                                    selectedIds = if (allSelected) {
+                                        emptySet()
+                                    } else {
+                                        allPendingIds
+                                    }
+                                }
+                            ) {
+                                Text(
+                                    text = if (allSelected) "Deselect All" else "Select All",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
-                    val nextTopic = nextScheduled?.let { topicMap[it.topicId] }
-                    val nextMessage = if (nextScheduled != null && nextTopic != null) {
-                        "Next: ${RevisionScheduler.format(nextScheduled.dueAt)} – ${nextTopic.title}"
+                }
+            }
+
+            if (showAlertsBanner) {
+                item {
+                    AlertTrustBanner(
+                        onFixInSettings = onOpenSettings,
+                        onDismiss = {
+                            prefs.edit().putBoolean(AlertTrustHelper.KEY_ALERTS_BANNER_DISMISSED, true).apply()
+                            alertsBannerDismissed = true
+                        }
+                    )
+                }
+            }
+
+            // Empty state when nothing is due today and nothing missed
+            if (dueToday.isEmpty() && missed.isEmpty()) {
+                item {
+                    if (topics.isEmpty()) {
+                        EmptyStateView(
+                            iconRes = R.drawable.ic_empty_clock,
+                            title = "Nothing due now.",
+                            message = "Add a topic to build your revision ladder."
+                        )
                     } else {
-                        "All scheduled revisions are completed."
-                    }
+                        val nextScheduled = remember(revisions, now) {
+                            revisions.filter { it.status == "SCHEDULED" && it.dueAt >= now }.minByOrNull { it.dueAt }
+                        }
+                        val nextTopic = nextScheduled?.let { topicMap[it.topicId] }
+                        val nextMessage = if (nextScheduled != null && nextTopic != null) {
+                            "Next: ${RevisionScheduler.format(nextScheduled.dueAt)} – ${nextTopic.title}"
+                        } else {
+                            "All scheduled revisions are completed."
+                        }
 
-                    EmptyStateView(
-                        iconRes = R.drawable.ic_empty_clock,
-                        title = "Nothing due now.",
-                        message = nextMessage
-                    )
-                }
-            }
-        }
-
-        if (dueToday.isNotEmpty()) {
-            item {
-                Text(
-                    text = "Due Today (${dueToday.size})",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
-                )
-            }
-            itemsIndexed(dueToday, key = { _, it -> it.id }) { index, rev ->
-                val topic = topicMap[rev.topicId]
-                Box(
-                    modifier = Modifier.animateItemPlacement(
-                        animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
-                    )
-                ) {
-                    StaggeredCardEntrance(index = index) {
-                        RevisionRowItem(
-                            topicTitle = topic?.title ?: "Topic #${rev.topicId}",
-                            subject = topic?.subject ?: "",
-                            formattedDue = RevisionScheduler.format(rev.dueAt),
-                            isMissed = false,
-                            onDone = { onMarkDone(rev.id) },
-                            chapter = topic?.chapter,
-                            intervalIndex = rev.intervalIndex,
-                            intervalDays = rev.intervalDays
+                        EmptyStateView(
+                            iconRes = R.drawable.ic_empty_clock,
+                            title = "Nothing due now.",
+                            message = nextMessage
                         )
                     }
                 }
             }
+
+            if (dueToday.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Due Today (${dueToday.size})",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
+                        )
+                        if (isSelectionMode) {
+                            val sectionIds = dueToday.map { it.id }
+                            val allSectionSelected = sectionIds.all { it in selectedIds }
+                            TextButton(onClick = { toggleSelectSection(sectionIds) }) {
+                                Text(
+                                    text = if (allSectionSelected) "Deselect section" else "Select section",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
+                                )
+                            }
+                        }
+                    }
+                }
+                itemsIndexed(dueToday, key = { _, it -> it.id }) { index, rev ->
+                    val topic = topicMap[rev.topicId]
+                    Box(
+                        modifier = Modifier.animateItemPlacement(
+                            animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                        )
+                    ) {
+                        StaggeredCardEntrance(index = index) {
+                            RevisionRowItem(
+                                topicTitle = topic?.title ?: "Topic #${rev.topicId}",
+                                subject = topic?.subject ?: "",
+                                formattedDue = RevisionScheduler.format(rev.dueAt),
+                                isMissed = false,
+                                onDone = { onMarkDone(rev.id) },
+                                chapter = topic?.chapter,
+                                intervalIndex = rev.intervalIndex,
+                                intervalDays = rev.intervalDays,
+                                isSelectionMode = isSelectionMode,
+                                isSelected = rev.id in selectedIds,
+                                onToggleSelect = { toggleSelectId(rev.id) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (missed.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Missed Revisions (${missed.size})",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "This date does not move. Mark Done when you catch up.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            )
+                        }
+                        if (isSelectionMode) {
+                            val sectionIds = missed.map { it.id }
+                            val allSectionSelected = sectionIds.all { it in selectedIds }
+                            TextButton(onClick = { toggleSelectSection(sectionIds) }) {
+                                Text(
+                                    text = if (allSectionSelected) "Deselect section" else "Select section",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
+                                )
+                            }
+                        }
+                    }
+                }
+                itemsIndexed(missed, key = { _, it -> it.id }) { index, rev ->
+                    val topic = topicMap[rev.topicId]
+                    Box(
+                        modifier = Modifier.animateItemPlacement(
+                            animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                        )
+                    ) {
+                        StaggeredCardEntrance(index = index) {
+                            RevisionRowItem(
+                                topicTitle = topic?.title ?: "Topic #${rev.topicId}",
+                                subject = topic?.subject ?: "",
+                                formattedDue = RevisionScheduler.format(rev.dueAt),
+                                isMissed = true,
+                                onDone = { onMarkDone(rev.id) },
+                                chapter = topic?.chapter,
+                                intervalIndex = rev.intervalIndex,
+                                intervalDays = rev.intervalDays,
+                                isSelectionMode = isSelectionMode,
+                                isSelected = rev.id in selectedIds,
+                                onToggleSelect = { toggleSelectId(rev.id) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (upcoming.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Upcoming (Next 10)",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (isSelectionMode) {
+                            val sectionIds = upcoming.map { it.id }
+                            val allSectionSelected = sectionIds.all { it in selectedIds }
+                            TextButton(onClick = { toggleSelectSection(sectionIds) }) {
+                                Text(
+                                    text = if (allSectionSelected) "Deselect section" else "Select section",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+                itemsIndexed(upcoming, key = { _, it -> it.id }) { index, rev ->
+                    val topic = topicMap[rev.topicId]
+                    Box(
+                        modifier = Modifier.animateItemPlacement(
+                            animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                        )
+                    ) {
+                        StaggeredCardEntrance(index = index) {
+                            RevisionRowItem(
+                                topicTitle = topic?.title ?: "Topic #${rev.topicId}",
+                                subject = topic?.subject ?: "",
+                                formattedDue = RevisionScheduler.format(rev.dueAt),
+                                isMissed = false,
+                                onDone = { onMarkDone(rev.id) },
+                                chapter = topic?.chapter,
+                                intervalIndex = rev.intervalIndex,
+                                intervalDays = rev.intervalDays,
+                                isSelectionMode = isSelectionMode,
+                                isSelected = rev.id in selectedIds,
+                                onToggleSelect = { toggleSelectId(rev.id) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                // Generous bottom spacing when sticky banner is visible
+                Spacer(modifier = Modifier.height(if (isSelectionMode) 88.dp else 16.dp))
+            }
         }
 
-        if (missed.isNotEmpty()) {
-            item {
-                Spacer(modifier = Modifier.height(4.dp))
-                Column {
+        // Sticky bottom banner: "{N} selected" + "Mark Done ({N})" + exit
+        if (isSelectionMode) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth(),
+                color = if (isDark) Color(0xFF0F172A) else Color.White,
+                shadowElevation = 8.dp,
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "Missed Revisions (${missed.size})",
-                        fontSize = 16.sp,
+                        text = "${selectedIds.size} selected",
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { exitSelectionMode() }) {
+                            Text("Cancel", fontSize = 13.sp)
+                        }
+                        Button(
+                            onClick = {
+                                if (selectedIds.isNotEmpty()) {
+                                    showConfirmDialog = true
+                                }
+                            },
+                            enabled = selectedIds.isNotEmpty(),
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF16A34A),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(
+                                text = "Mark Done (${selectedIds.size})",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Confirmation Dialog
+        if (showConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showConfirmDialog = false },
+                title = {
                     Text(
-                        text = "This date does not move. Mark Done when you catch up.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        text = "Mark Done",
+                        fontWeight = FontWeight.Bold
                     )
-                }
-            }
-            itemsIndexed(missed, key = { _, it -> it.id }) { index, rev ->
-                val topic = topicMap[rev.topicId]
-                Box(
-                    modifier = Modifier.animateItemPlacement(
-                        animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
+                },
+                text = {
+                    Text(
+                        text = "Mark ${selectedIds.size} revisions done? Remaining future dates will not change."
                     )
-                ) {
-                    StaggeredCardEntrance(index = index) {
-                        RevisionRowItem(
-                            topicTitle = topic?.title ?: "Topic #${rev.topicId}",
-                            subject = topic?.subject ?: "",
-                            formattedDue = RevisionScheduler.format(rev.dueAt),
-                            isMissed = true,
-                            onDone = { onMarkDone(rev.id) },
-                            chapter = topic?.chapter,
-                            intervalIndex = rev.intervalIndex,
-                            intervalDays = rev.intervalDays
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val targets = selectedIds.toList()
+                            showConfirmDialog = false
+                            exitSelectionMode()
+                            onBatchMarkDone(targets)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF16A34A),
+                            contentColor = Color.White
                         )
+                    ) {
+                        Text("Confirm", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showConfirmDialog = false }) {
+                        Text("Cancel")
                     }
                 }
-            }
-        }
-
-        if (upcoming.isNotEmpty()) {
-            item {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Upcoming (Next 10)",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            itemsIndexed(upcoming, key = { _, it -> it.id }) { index, rev ->
-                val topic = topicMap[rev.topicId]
-                Box(
-                    modifier = Modifier.animateItemPlacement(
-                        animationSpec = tween(durationMillis = Motion.FAST, easing = Motion.STANDARD)
-                    )
-                ) {
-                    StaggeredCardEntrance(index = index) {
-                        RevisionRowItem(
-                            topicTitle = topic?.title ?: "Topic #${rev.topicId}",
-                            subject = topic?.subject ?: "",
-                            formattedDue = RevisionScheduler.format(rev.dueAt),
-                            isMissed = false,
-                            onDone = { onMarkDone(rev.id) },
-                            chapter = topic?.chapter,
-                            intervalIndex = rev.intervalIndex,
-                            intervalDays = rev.intervalDays
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
+            )
         }
     }
 }

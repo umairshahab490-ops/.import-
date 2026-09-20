@@ -38,6 +38,14 @@ class MainViewModel(
     private var lastDeletedTopicSnapshot: TopicEntity? = null
     private var lastDeletedRevisionsSnapshot: List<RevisionEntity> = emptyList()
 
+    // In-memory snapshot for Batch Mark-Done UNDO: list of (id, status, completedAt)
+    data class RevisionStatusSnapshot(
+        val id: Long,
+        val status: String,
+        val completedAt: Long?
+    )
+    private var lastBatchMarkDoneSnapshot: List<RevisionStatusSnapshot> = emptyList()
+
     init {
         // Run missed scan and top-up upcoming alarms on app launch
         scanForMissed()
@@ -216,6 +224,58 @@ class MainViewModel(
             val now = System.currentTimeMillis()
             revisionDao.updateStatus(revisionId, "DONE", now)
             AlertScheduler.cancel(getApplication(), revisionId)
+        }
+    }
+
+    fun batchMarkDone(revisionIds: List<Long>) {
+        if (revisionIds.isEmpty()) return
+        viewModelScope.launch {
+            val currentRevisions = revisions.value
+            val affected = currentRevisions.filter { it.id in revisionIds }
+            lastBatchMarkDoneSnapshot = affected.map {
+                RevisionStatusSnapshot(it.id, it.status, it.completedAt)
+            }
+            val now = System.currentTimeMillis()
+            database.withTransaction {
+                revisionDao.updateStatusForIds(revisionIds, "DONE", now)
+            }
+            val app = getApplication<Application>()
+            revisionIds.forEach { id ->
+                AlertScheduler.cancel(app, id)
+            }
+        }
+    }
+
+    fun undoBatchMarkDone() {
+        val snapshot = lastBatchMarkDoneSnapshot
+        if (snapshot.isEmpty()) return
+        viewModelScope.launch {
+            database.withTransaction {
+                snapshot.forEach { item ->
+                    revisionDao.updateStatus(item.id, item.status, item.completedAt)
+                }
+            }
+            // If any were SCHEDULED, reschedule upcoming alarms
+            val app = getApplication<Application>()
+            val now = System.currentTimeMillis()
+            val allRev = revisionDao.getAll()
+            val allTopics = topicDao.getAll().associateBy { it.id }
+            snapshot.filter { it.status == "SCHEDULED" }.forEach { item ->
+                val rev = allRev.find { it.id == item.id }
+                if (rev != null && rev.alertAt > now) {
+                    val topic = allTopics[rev.topicId]
+                    if (topic != null) {
+                        AlertScheduler.schedule(
+                            context = app,
+                            revisionId = rev.id,
+                            alertAt = rev.alertAt,
+                            topicTitle = topic.title,
+                            subject = topic.subject
+                        )
+                    }
+                }
+            }
+            lastBatchMarkDoneSnapshot = emptyList()
         }
     }
 

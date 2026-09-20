@@ -30,6 +30,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -368,7 +370,10 @@ fun RevisionRowItem(
     intervalIndex: Int? = null,
     intervalDays: Int? = null,
     statusText: String? = null,
-    buttonText: String = "Done"
+    buttonText: String = "Done",
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelect: () -> Unit = {}
 ) {
     val isDark = StudyPlanThemeDefaults.glassColors.isDark
     val containerColor = if (isMissed) {
@@ -376,16 +381,24 @@ fun RevisionRowItem(
     } else {
         StudyPlanThemeDefaults.glassColors.cardSurface
     }
-    val borderColor = if (isMissed) {
+    val borderColor = if (isSelectionMode && isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else if (isMissed) {
         if (isDark) Color(0xFFEF4444).copy(alpha = 0.35f) else Color(0xFFFCA5A5).copy(alpha = 0.60f)
     } else {
         if (isDark) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.30f)
     }
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (isSelectionMode) {
+                    Modifier.clickable(onClick = onToggleSelect)
+                } else Modifier
+            ),
         shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, borderColor),
+        border = BorderStroke(if (isSelectionMode && isSelected) 2.dp else 1.dp, borderColor),
         color = containerColor
     ) {
         Row(
@@ -395,6 +408,17 @@ fun RevisionRowItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            if (isSelectionMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggleSelect() },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = MaterialTheme.colorScheme.primary,
+                        checkmarkColor = Color.White
+                    ),
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = topicTitle,
@@ -462,19 +486,21 @@ fun RevisionRowItem(
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Button(
-                onClick = onDone,
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isMissed) Color(0xFFDC2626) else Color(0xFF16A34A),
-                    contentColor = Color.White
-                ),
-                modifier = Modifier
-                    .semantics { contentDescription = "Mark revision done" }
-                    .defaultMinSize(minWidth = 68.dp, minHeight = 48.dp)
-            ) {
-                Text(buttonText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            if (!isSelectionMode) {
+                Spacer(modifier = Modifier.width(12.dp))
+                Button(
+                    onClick = onDone,
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isMissed) Color(0xFFDC2626) else Color(0xFF16A34A),
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .semantics { contentDescription = "Mark revision done" }
+                        .defaultMinSize(minWidth = 68.dp, minHeight = 48.dp)
+                ) {
+                    Text(buttonText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

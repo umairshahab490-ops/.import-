@@ -62,4 +62,10 @@ interface RevisionDao {
 
     @Query("UPDATE revisions SET status = :status, completedAt = :completedAt WHERE id = :id")
     suspend fun updateStatus(id: Long, status: String, completedAt: Long?)
+
+    @Query("UPDATE revisions SET status = :status, completedAt = :completedAt WHERE id IN (:ids)")
+    suspend fun updateStatusForIds(ids: List<Long>, status: String, completedAt: Long?)
+
+    @Update
+    suspend fun updateAll(revisions: List<RevisionEntity>)
 }

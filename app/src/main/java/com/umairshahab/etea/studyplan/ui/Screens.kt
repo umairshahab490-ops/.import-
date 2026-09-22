@@ -62,6 +62,7 @@ import com.umairshahab.etea.studyplan.domain.RevisionScheduler
 import com.umairshahab.etea.studyplan.domain.Subject
 import com.umairshahab.etea.studyplan.ui.components.AlertTrustBanner
 import com.umairshahab.etea.studyplan.ui.components.AlertTrustHelper
+import com.umairshahab.etea.studyplan.ui.components.BackupReminderCard
 import com.umairshahab.etea.studyplan.ui.components.EmptyStateView
 import com.umairshahab.etea.studyplan.ui.components.GradientPillButton
 import com.umairshahab.etea.studyplan.ui.components.GradientPillChip
@@ -103,6 +104,9 @@ fun HomeScreen(
     var alertsBannerDismissed by remember {
         mutableStateOf(prefs.getBoolean(AlertTrustHelper.KEY_ALERTS_BANNER_DISMISSED, false))
     }
+    var backupBannerDismissed by remember {
+        mutableStateOf(prefs.getBoolean("backup_reminder_card_dismissed", false))
+    }
     var showSettingsSheet by remember { mutableStateOf(false) }
 
     val hasScheduledRevisions = remember(topics, revisions) {
@@ -115,7 +119,13 @@ fun HomeScreen(
         topicCount = topics.size
     )
 
+    val lastBackupExportedAt = remember(prefs) {
+        prefs.getLong("last_backup_exported_at", 0L)
+    }
     val now = System.currentTimeMillis()
+    val fourteenDaysMillis = 14L * 24L * 60L * 60L * 1000L
+    val showBackupBanner = !backupBannerDismissed &&
+        (lastBackupExportedAt <= 0L || (now - lastBackupExportedAt) > fourteenDaysMillis)
     val dueTodayCount = revisions.count {
         it.status == "SCHEDULED" && RevisionScheduler.isSameDay(it.dueAt, now) && it.dueAt >= now
     }
@@ -186,6 +196,21 @@ fun HomeScreen(
                     onDismiss = {
                         prefs.edit().putBoolean(AlertTrustHelper.KEY_ALERTS_BANNER_DISMISSED, true).apply()
                         alertsBannerDismissed = true
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+        }
+
+        if (showBackupBanner) {
+            item {
+                BackupReminderCard(
+                    onExportBackup = {
+                        showSettingsSheet = true
+                    },
+                    onDismiss = {
+                        prefs.edit().putBoolean("backup_reminder_card_dismissed", true).apply()
+                        backupBannerDismissed = true
                     },
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )

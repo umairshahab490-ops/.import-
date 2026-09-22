@@ -14,8 +14,10 @@ import com.umairshahab.etea.studyplan.R
 object NotificationHelper {
     const val CHANNEL_REMINDERS = "revision_reminders"
     const val CHANNEL_MISSED = "missed_revisions"
+    const val CHANNEL_BACKUP_REMINDER = "backup_reminder"
     const val GROUP_KEY = "study_plan_revisions"
     const val SUMMARY_NOTIFICATION_ID = 999999
+    const val BACKUP_REMINDER_NOTIFICATION_ID = 999998
 
     fun createChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -39,8 +41,17 @@ object NotificationHelper {
                 description = "Notifications for overdue study revisions"
             }
 
+            val backupChannel = NotificationChannel(
+                CHANNEL_BACKUP_REMINDER,
+                "Backup Reminders",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Periodic reminders to export a backup and protect study progress"
+            }
+
             notificationManager.createNotificationChannel(reminderChannel)
             notificationManager.createNotificationChannel(missedChannel)
+            notificationManager.createNotificationChannel(backupChannel)
         }
     }
 
@@ -173,6 +184,35 @@ object NotificationHelper {
             } else {
                 notificationManager.cancel(SUMMARY_NOTIFICATION_ID)
             }
+        }
+    }
+
+    fun showBackupReminderNotification(context: Context) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("open_tab", "settings")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            BACKUP_REMINDER_NOTIFICATION_ID,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_BACKUP_REMINDER)
+            .setSmallIcon(R.drawable.ic_launcher)
+            .setContentTitle("Study Plan Backup")
+            .setContentText("Protect your progress — export a backup")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        val notificationManager = NotificationManagerCompat.from(context)
+        try {
+            notificationManager.notify(BACKUP_REMINDER_NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // Permission denied or restricted; fail silently
         }
     }
 }

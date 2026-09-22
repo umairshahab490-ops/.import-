@@ -91,6 +91,7 @@ import com.umairshahab.etea.studyplan.data.local.RevisionEntity
 import com.umairshahab.etea.studyplan.data.local.TopicEntity
 import com.umairshahab.etea.studyplan.domain.BackupManager
 import com.umairshahab.etea.studyplan.domain.Subject
+import com.umairshahab.etea.studyplan.notifications.BackupReminderWorker
 import com.umairshahab.etea.studyplan.notifications.NotificationHelper
 import com.umairshahab.etea.studyplan.notifications.ReminderWorker
 import com.umairshahab.etea.studyplan.ui.AllTopicsScreen
@@ -138,6 +139,16 @@ class MainActivity : ComponentActivity() {
             "study_plan_reminder_worker",
             ExistingPeriodicWorkPolicy.KEEP,
             periodicWorkRequest
+        )
+
+        // 3. Schedule periodic WorkManager for backup reminder nudge (14-day interval)
+        val backupReminderWorkRequest = PeriodicWorkRequestBuilder<BackupReminderWorker>(
+            14, TimeUnit.DAYS
+        ).build()
+        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+            "study_plan_backup_reminder_worker",
+            ExistingPeriodicWorkPolicy.KEEP,
+            backupReminderWorkRequest
         )
 
         setContent {
@@ -219,6 +230,9 @@ fun StudyPlanScreen(
     LaunchedEffect(targetTab) {
         if (targetTab == "revise") {
             selectedTab = 1
+            onClearTargetTab()
+        } else if (targetTab == "settings") {
+            showSettingsSheet = true
             onClearTargetTab()
         }
     }
